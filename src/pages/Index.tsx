@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { EscrowCard } from "@/components/EscrowCard";
 import { CreateEscrowForm } from "@/components/CreateEscrowForm";
 import { EscrowDetailsPanel } from "@/components/EscrowDetailsPanel";
+import { BitcoinOSRoadmap } from "@/components/BitcoinOSRoadmap";
 import { Button } from "@/components/ui/button";
 import { useEscrow } from "@/hooks/useEscrow";
 import { 
@@ -11,10 +12,8 @@ import {
   Shield, 
   Zap, 
   Lock, 
-  ArrowRight,
-  Code2,
   Bitcoin,
-  CheckCircle2
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,10 +89,10 @@ const Index = () => {
                   variant="outline"
                   size="lg"
                   className="w-full sm:w-auto"
-                  onClick={() => window.open("https://docs.charms.dev", "_blank")}
+                  onClick={() => window.open("https://bitcoinos.build/ecosystem", "_blank")}
                 >
-                  <Code2 className="w-4 h-4" />
-                  View SDK Docs
+                  <ExternalLink className="w-4 h-4" />
+                  Explore Ecosystem
                 </Button>
               </div>
             </motion.div>
@@ -193,123 +192,9 @@ const Index = () => {
           )}
         </section>
 
-        {/* SDK Integration Section */}
+        {/* Bitcoin OS Ecosystem Section */}
         <section className="container mx-auto px-4 py-16 border-t border-border">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-4xl mx-auto"
-          >
-            <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
-                SDK Integration
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Built with the Charms SDK. Here's how the escrow contract works under the hood.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Code example */}
-              <div className="rounded-2xl bg-card border border-border overflow-hidden">
-                <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center gap-2">
-                  <Code2 className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-mono text-muted-foreground">escrow_contract.rs</span>
-                </div>
-                <pre className="p-4 text-sm font-mono text-muted-foreground overflow-x-auto">
-{`/// Charms Escrow App Contract
-pub fn escrow_contract(
-    app: &App, 
-    tx: &Transaction,
-    x: &Data, 
-    w: &Data
-) -> bool {
-    match app.tag {
-        ESCROW => {
-            check!(escrow_satisfied(
-                app, tx, x, w
-            ))
-        }
-        _ => unreachable!(),
-    }
-    true
-}
-
-fn escrow_satisfied(
-    app: &App,
-    tx: &Transaction,
-    x: &Data,
-    w: &Data
-) -> bool {
-    // Verify milestone completion
-    check!(milestone_completed(x, w));
-    // Verify payment release
-    check!(release_authorized(app, tx));
-    true
-}`}
-                </pre>
-              </div>
-
-              {/* Features list */}
-              <div className="space-y-4">
-                {[
-                  {
-                    title: "Zero-Knowledge Proofs",
-                    description: "Verify milestone completion without revealing sensitive data",
-                  },
-                  {
-                    title: "UTXO-Based State",
-                    description: "Contract state attached to Bitcoin outputs for trustless verification",
-                  },
-                  {
-                    title: "Spell Transactions",
-                    description: "Transform escrow state through Bitcoin transactions with embedded spells",
-                  },
-                  {
-                    title: "Client-Side Validation",
-                    description: "Users verify spell correctness independently, no central authority",
-                  },
-                ].map((item, index) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-3 p-4 rounded-xl bg-secondary/20"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-foreground">{item.title}</h4>
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {/* Future features */}
-            <div className="mt-12 p-6 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                Future Expansion
-              </h3>
-              <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {[
-                  "Multi-party escrows",
-                  "Time-locked releases",
-                  "Oracle integration",
-                  "Cross-chain bridges",
-                ].map((feature) => (
-                  <div key={feature} className="flex items-center gap-2 text-muted-foreground">
-                    <ArrowRight className="w-3 h-3 text-primary" />
-                    {feature}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          <BitcoinOSRoadmap />
         </section>
       </main>
 
