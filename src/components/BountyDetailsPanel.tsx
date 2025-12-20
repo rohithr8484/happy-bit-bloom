@@ -34,7 +34,7 @@ interface BountyDetailsPanelProps {
   onSubmitWork: (proof: string) => Promise<void>;
   onVerifyWithOracle: () => Promise<OracleVerification>;
   onApproveBounty: (signature: string) => Promise<void>;
-  onReleaseBounty: () => Promise<void>;
+  onReleaseBounty: () => Promise<unknown>;
   onDisputeBounty: (reason: string) => Promise<void>;
   loading: boolean;
   oracleLoading: boolean;
