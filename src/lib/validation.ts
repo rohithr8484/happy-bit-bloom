@@ -39,6 +39,59 @@ export function isValidBitcoinAddress(address: string): boolean {
 }
 
 /**
+ * Validates a Bitcoin address with detailed result
+ */
+export function validateBitcoinAddress(address: string): { valid: boolean; error?: string; type?: string } {
+  if (!address || typeof address !== 'string') {
+    return { valid: false, error: 'Address is required' };
+  }
+  
+  const trimmed = address.trim();
+  if (trimmed.length < 26) {
+    return { valid: false, error: 'Address is too short' };
+  }
+  if (trimmed.length > 90) {
+    return { valid: false, error: 'Address is too long' };
+  }
+  
+  const type = getBitcoinAddressType(trimmed);
+  if (!type) {
+    return { valid: false, error: 'Invalid Bitcoin address format' };
+  }
+  
+  return { valid: true, type };
+}
+
+/**
+ * Validates BTC amount with detailed result
+ */
+export function validateBTCAmount(amount: string, tokenType: TokenType = 'BTC'): { valid: boolean; error?: string } {
+  if (!amount || amount.trim() === '') {
+    return { valid: false, error: 'Amount is required' };
+  }
+  
+  const num = parseFloat(amount);
+  if (isNaN(num) || !isFinite(num)) {
+    return { valid: false, error: 'Invalid number format' };
+  }
+  
+  const config = TOKEN_CONFIG[tokenType];
+  if (num < config.minAmount) {
+    return { valid: false, error: `Minimum is ${config.minAmount} ${config.symbol}` };
+  }
+  if (num > config.maxAmount) {
+    return { valid: false, error: `Maximum is ${config.maxAmount.toLocaleString()} ${config.symbol}` };
+  }
+  
+  const parts = amount.split('.');
+  if (parts[1] && parts[1].length > config.decimals) {
+    return { valid: false, error: `Maximum ${config.decimals} decimal places` };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Gets the type of Bitcoin address
  */
 export function getBitcoinAddressType(address: string): string | null {
