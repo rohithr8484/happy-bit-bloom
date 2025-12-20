@@ -101,6 +101,7 @@ export interface CreateEscrowParams {
   payerAddress: string;
   payeeAddress: string;
   arbiterAddress?: string;
+  tokenType?: 'BTC' | 'zkBTC';
   milestones: {
     title: string;
     description: string;
