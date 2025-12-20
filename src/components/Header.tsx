@@ -7,6 +7,7 @@ import {
   Bitcoin
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { WalletConnect } from "./WalletConnect";
 
 interface HeaderProps {
   className?: string;
@@ -52,10 +53,10 @@ export function Header({ className }: HeaderProps) {
             Dashboard
           </a>
           <a 
-            href="#" 
+            href="#bounties" 
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Transactions
+            Bounties
           </a>
           <a 
             href="https://docs.charms.dev" 
@@ -82,6 +83,7 @@ export function Header({ className }: HeaderProps) {
           >
             <Github className="w-5 h-5 text-muted-foreground" />
           </a>
+          <WalletConnect />
         </div>
       </div>
     </motion.header>
