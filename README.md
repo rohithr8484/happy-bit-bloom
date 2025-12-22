@@ -1,2 +1,2 @@
-# Welcome to your BOS Hackathon 
+# Welcome to BOS CircuitForge
 
