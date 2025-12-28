@@ -11,6 +11,8 @@ import { BountyDetailsPanel } from "@/components/BountyDetailsPanel";
 import { BollarMint } from "@/components/BollarMint";
 import { ZKVerificationPanel } from "@/components/ZKVerificationPanel";
 import { BitcoinAnalyticsDashboard } from "@/components/BitcoinAnalyticsDashboard";
+import { ScrollProvingPanel } from "@/components/ScrollProvingPanel";
+import { CharmsFlowDiagram } from "@/components/CharmsFlowDiagram";
 import { Button } from "@/components/ui/button";
 import { useEscrow } from "@/hooks/useEscrow";
 import { useBounty } from "@/hooks/useBounty";
@@ -25,13 +27,15 @@ import {
   Target,
   FileCheck,
   BarChart3,
+  Layers,
+  Gem,
 } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showBountyForm, setShowBountyForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'escrows' | 'bounties' | 'bollar' | 'zk' | 'analytics'>('escrows');
+  const [activeTab, setActiveTab] = useState<'escrows' | 'bounties' | 'bollar' | 'zk' | 'analytics' | 'scroll' | 'charms'>('escrows');
 
   const {
     escrows,
@@ -84,6 +88,8 @@ const Index = () => {
     { id: 'bounties' as const, label: 'Bounties', icon: Target },
     { id: 'bollar' as const, label: 'Bollar', icon: Coins },
     { id: 'zk' as const, label: 'ZK Proofs', icon: FileCheck },
+    { id: 'scroll' as const, label: 'Scroll', icon: Layers },
+    { id: 'charms' as const, label: 'Charms', icon: Gem },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
   ];
 
@@ -224,6 +230,8 @@ const Index = () => {
 
           {activeTab === 'bollar' && <BollarMint />}
           {activeTab === 'zk' && <ZKVerificationPanel />}
+          {activeTab === 'scroll' && <ScrollProvingPanel />}
+          {activeTab === 'charms' && <CharmsFlowDiagram />}
           {activeTab === 'analytics' && <BitcoinAnalyticsDashboard />}
         </section>
 
