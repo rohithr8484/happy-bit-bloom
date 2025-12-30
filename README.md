@@ -89,15 +89,19 @@ Exact versions are defined in `package.json`.
 npm run dev
 
 🏗️ Build for Production
+
 npm run build
 
 🧩 Build (Development Mode)
+
 npm run build:dev
 
 🔍 Preview Production Build
+
 npm run preview
 
 🧹 Lint Code
+
 npm run lint
 
 ```
