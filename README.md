@@ -84,7 +84,7 @@ Exact versions are defined in `package.json`.
 
 ## 🧪 Run in Development Mode
 
-'''bash
+```bash
 
 npm run dev
 
@@ -100,7 +100,7 @@ npm run preview
 🧹 Lint Code
 npm run lint
 
-'''
+```
 
 
 ## 📜 License
