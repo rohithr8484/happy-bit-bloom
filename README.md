@@ -1,7 +1,7 @@
 # BOS CircuitForge
 
-BOS CircuitForge is a Bitcoin OS–native framework for building UTXO-secured escrows, stateful circuits, and verifiable execution flows with final settlement on Bitcoin.  
-It enables developers to model application logic as deterministic circuits, prove execution correctness, and anchor outcomes to Bitcoin.
+BOS CircuitForge is a Bitcoin OS–native framework for building UTXO-secured escrows, stateful circuits, and verifiable execution flows with final settlement on Bitcoin. It enables developers to model application logic as deterministic circuits, prove execution correctness, and anchor outcomes to Bitcoin.
+
 <img width="899" height="447" alt="bitcoin" src="https://github.com/user-attachments/assets/aaaaecdb-c67e-4701-b7ec-e9670cafe41f" />
 
 ---
