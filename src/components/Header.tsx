@@ -28,10 +28,7 @@ export function Header({ className }: HeaderProps) {
             <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-success animate-pulse" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-foreground flex items-center gap-1.5">
-              BOS Circuit Forge
-              <Sparkles className="w-4 h-4 text-primary" />
-            </h1>
+            <h1 className="font-bold text-lg text-foreground flex items-center gap-1.5">BOS Circuit Forge</h1>
           </div>
         </div>
 
