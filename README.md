@@ -50,6 +50,7 @@ Optional high-throughput execution or coordination layer prior to Bitcoin finali
 ### 🔹 UTXOS.dev 
 
 A full-stack Web3 infrastructure platform purpose-built for Bitcoin, Cardano and Spark.
+
 ---
 
 ## 🧱 Tech Stack
@@ -83,6 +84,7 @@ Exact versions are defined in `package.json`.
 
 ## 🧪 Run in Development Mode
 
+'''bash
 
 npm run dev
 
@@ -98,7 +100,7 @@ npm run preview
 🧹 Lint Code
 npm run lint
 
-
+'''
 
 
 ## 📜 License
