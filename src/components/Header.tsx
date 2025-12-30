@@ -1,11 +1,5 @@
 import { cn } from "@/lib/utils";
-import { 
-  Shield, 
-  Sparkles, 
-  Github, 
-  ExternalLink,
-  Bitcoin
-} from "lucide-react";
+import { Shield, Sparkles, Github, ExternalLink, Bitcoin } from "lucide-react";
 import { motion } from "framer-motion";
 import { WalletConnect } from "./WalletConnect";
 
@@ -21,7 +15,7 @@ export function Header({ className }: HeaderProps) {
       className={cn(
         "fixed top-0 left-0 right-0 z-40",
         "border-b border-border/50 bg-background/80 backdrop-blur-xl",
-        className
+        className,
       )}
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -35,37 +29,19 @@ export function Header({ className }: HeaderProps) {
           </div>
           <div>
             <h1 className="font-bold text-lg text-foreground flex items-center gap-1.5">
-              CharmEscrow
+              BOS Circuit Forge
               <Sparkles className="w-4 h-4 text-primary" />
             </h1>
-            <p className="text-xs text-muted-foreground">
-              Powered by Charms Protocol
-            </p>
           </div>
         </div>
 
         {/* Nav links */}
         <nav className="hidden md:flex items-center gap-6">
-          <a 
-            href="#" 
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Dashboard
           </a>
-          <a 
-            href="#bounties" 
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <a href="#bounties" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Bounties
-          </a>
-          <a 
-            href="https://docs.charms.dev" 
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            Docs
-            <ExternalLink className="w-3 h-3" />
           </a>
         </nav>
 
