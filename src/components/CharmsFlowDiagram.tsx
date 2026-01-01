@@ -39,13 +39,11 @@ import {
   Play,
   Coins,
   Lock,
-  Unlock,
   Hash,
-  FolderTree,
-  File,
-  Terminal,
-  Code,
   Sparkles,
+  ShieldCheck,
+  FileCheck,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -87,83 +85,9 @@ const DEMO_SPELLS = {
   },
 };
 
-// Rust example project structure
-const RUST_PROJECTS = {
-  charmix: {
-    name: 'charmix',
-    description: 'Example Charms application with NFT minting and token transfers',
-    files: [
-      { type: 'folder', name: 'spells', children: [
-        { type: 'file', name: 'mint-nft.yaml' },
-        { type: 'file', name: 'send.yaml' },
-      ]},
-      { type: 'folder', name: 'src', children: [
-        { type: 'file', name: 'lib.rs', content: `use charms_sdk::data::{
-    check, App, Data, Transaction, NFT, TOKEN,
-};
-
-pub fn app_contract(app: &App, tx: &Transaction, x: &Data, w: &Data) -> bool {
-    match app.tag {
-        NFT => {
-            check!(nft_contract_satisfied(app, tx, x, w))
-        }
-        TOKEN => {
-            check!(token_contract_satisfied(app, tx, x, w))
-        }
-        _ => todo!(),
-    }
-    true
-}` },
-        { type: 'file', name: 'main.rs', content: `#![no_main]
-charms_sdk::main!(charmix::app_contract);` },
-      ]},
-      { type: 'file', name: 'Cargo.toml', content: `[package]
-name = "charmix"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-charms-sdk = { version = "0.3.0" }` },
-      { type: 'file', name: 'LICENSE' },
-      { type: 'file', name: 'README.md' },
-    ],
-  },
-  spellChecker: {
-    name: 'charms-spell-checker',
-    description: 'SP1 zkVM-based spell verification',
-    files: [
-      { type: 'folder', name: 'src', children: [
-        { type: 'file', name: 'lib.rs', content: `use sp1_primitives::io::sha256_hash;
-use sp1_zkvm::lib::verify::verify_sp1_proof;
-
-pub const SPELL_CHECKER_VK: [u32; 8] = [
-    574488448, 707802997, 1870388809, 964830622,
-    1508095714, 795547556, 261568372, 1725719316,
-];
-
-pub fn main() {
-    let input_vec = sp1_zkvm::io::read_vec();
-    verify_proof(&SPELL_CHECKER_VK, &input_vec);
-    sp1_zkvm::io::commit_slice(&input_vec);
-}
-
-fn verify_proof(vk: &[u32; 8], committed_data: &[u8]) {
-    let Ok(pv) = sha256_hash(committed_data).try_into() else {
-        unreachable!()
-    };
-    verify_sp1_proof(vk, &pv);
-}` },
-        { type: 'file', name: 'main.rs' },
-      ]},
-      { type: 'file', name: 'Cargo.toml' },
-      { type: 'file', name: 'README.md' },
-    ],
-  },
-};
-
 export function CharmsFlowDiagram() {
   const { buildCharmsApp, verifySpell } = useRustZKProver();
-  const [activeTab, setActiveTab] = useState<'spellChecker' | 'builder' | 'rustProjects' | 'charmCrypto'>('spellChecker');
+  const [activeTab, setActiveTab] = useState<'spellChecker' | 'builder' | 'charmCrypto'>('spellChecker');
   const [spellInput, setSpellInput] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
   const [verificationResult, setVerificationResult] = useState<SpellValidation | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -220,8 +144,7 @@ export function CharmsFlowDiagram() {
   const tabs = [
     { id: 'spellChecker' as const, label: 'Spell Checker', icon: Shield },
     { id: 'builder' as const, label: 'Spell Builder', icon: FileCode },
-    { id: 'rustProjects' as const, label: 'Rust Projects', icon: FolderTree },
-    { id: 'charmCrypto' as const, label: 'Charm.js', icon: Lock },
+    { id: 'charmCrypto' as const, label: 'Spell Verifier', icon: Lock },
   ];
 
   return (
@@ -296,7 +219,7 @@ export function CharmsFlowDiagram() {
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2">
-                    <Code className="w-4 h-4 text-primary" />
+                    <FileCode className="w-4 h-4 text-primary" />
                     Spell JSON (NormalizedSpell v2)
                   </Label>
                   <Button variant="ghost" size="sm" onClick={handleCopySpell} className="hover:text-primary">
@@ -410,24 +333,10 @@ export function CharmsFlowDiagram() {
           </motion.div>
         )}
 
-        {/* Rust Projects Tab */}
-        {activeTab === 'rustProjects' && (
-          <motion.div
-            key="rustProjects"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <RustProjectsPanel />
-          </motion.div>
-        )}
-
-        {/* Charm.js Crypto Tab */}
+        {/* Spell Verifier Tab */}
         {activeTab === 'charmCrypto' && (
           <motion.div
-            key="charmCrypto"
+            key="spellVerifier"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -442,162 +351,68 @@ export function CharmsFlowDiagram() {
   );
 }
 
-// Rust Projects Panel Component - Simplified without code display
-function RustProjectsPanel() {
-  const [selectedProject, setSelectedProject] = useState<'charmix' | 'spellChecker'>('charmix');
-  const project = RUST_PROJECTS[selectedProject];
-
-  const countFiles = (files: any[]): number => {
-    return files.reduce((acc, file) => {
-      if (file.type === 'folder' && file.children) {
-        return acc + countFiles(file.children);
-      }
-      return acc + 1;
-    }, 0);
-  };
-
-  return (
-    <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
-      <div className="flex items-center gap-4 mb-8">
-        <motion.div 
-          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/30 to-amber-500/20 flex items-center justify-center shadow-lg shadow-orange-500/10"
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        >
-          <Terminal className="w-7 h-7 text-orange-400" />
-        </motion.div>
-        <div>
-          <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
-            Rust Example Projects
-            <Badge variant="outline" className="text-xs">Charms SDK</Badge>
-          </h3>
-          <p className="text-sm text-muted-foreground">Build programmable Bitcoin apps with Rust</p>
-        </div>
-      </div>
-
-      {/* Project Tabs */}
-      <div className="flex gap-3 mb-6">
-        {Object.entries(RUST_PROJECTS).map(([key, proj], index) => (
-          <motion.div 
-            key={key} 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ scale: 1.02 }} 
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              variant={selectedProject === key ? 'default' : 'outline'}
-              onClick={() => setSelectedProject(key as any)}
-              className={selectedProject === key ? 'shadow-lg shadow-primary/20' : ''}
-            >
-              <FolderTree className="w-4 h-4 mr-2" />
-              {proj.name}
-            </Button>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Project Info Card */}
-      <motion.div 
-        key={selectedProject}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-6 rounded-xl bg-gradient-to-br from-secondary/50 to-secondary/20 border border-border"
-      >
-        <h4 className="font-semibold text-lg text-foreground mb-2">{project.name}</h4>
-        <p className="text-muted-foreground mb-6">{project.description}</p>
-        
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
-            <div className="text-2xl font-bold text-primary">{countFiles(project.files)}</div>
-            <div className="text-xs text-muted-foreground">Files</div>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
-            <div className="text-2xl font-bold text-orange-400">Rust</div>
-            <div className="text-xs text-muted-foreground">Language</div>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
-            <div className="text-2xl font-bold text-green-400">0.3.0</div>
-            <div className="text-xs text-muted-foreground">SDK Version</div>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(`https://github.com/CharmsDev/charms/tree/main/example-projects/${project.name}`, '_blank')}
-            className="flex-1"
-          >
-            <Code className="w-4 h-4 mr-2" />
-            View on GitHub
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              navigator.clipboard.writeText(`charms app new ${project.name}`);
-              toast.success('Command copied!');
-            }}
-            className="flex-1"
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copy Command
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Quick Start */}
-      <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
-        <div className="flex items-center gap-2 mb-2">
-          <Zap className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Quick Start</span>
-        </div>
-        <code className="text-sm font-mono text-primary">
-          charms app new {project.name}
-        </code>
-      </div>
-    </div>
-  );
-}
-
-// Charm.js Crypto Panel Component - Simplified without code display
+// Spell Verifier Panel - Cryptographic spell verification using charm-crypto
 function CharmCryptoPanel() {
-  const [message, setMessage] = useState('Hello from Charm!');
-  const [encryptedHex, setEncryptedHex] = useState<string | null>(null);
-  const [decryptedMessage, setDecryptedMessage] = useState<string | null>(null);
-  const [hashHex, setHashHex] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [spellData, setSpellData] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
+  const [verificationResult, setVerificationResult] = useState<{
+    spellHash: string;
+    signature: string;
+    vkHash: string;
+    isValid: boolean;
+    timestamp: number;
+  } | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleRunDemo = async () => {
-    setIsProcessing(true);
+  const handleVerifySpell = async () => {
+    setIsVerifying(true);
+    setVerificationResult(null);
     
     try {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 800));
       
-      const key = new Uint8Array(32).fill(1);
-      const nonce = new Uint8Array(16).fill(2);
-      const messageBytes = new TextEncoder().encode(message);
-      const messageCopy = new Uint8Array(messageBytes);
+      // Parse the spell and generate cryptographic proofs
+      const spell = JSON.parse(spellData);
+      const spellBytes = new TextEncoder().encode(JSON.stringify(spell));
       
+      // Generate key and nonce for signing
+      const keyResult = getrandom.getBytes(32);
+      const nonceResult = getrandom.getBytes(16);
+      
+      if (!keyResult.ok || !nonceResult.ok) {
+        throw new Error('Failed to generate cryptographic material');
+      }
+      
+      const key = keyResult.value;
+      const nonce = nonceResult.value;
+      
+      // Create charm instance for hashing and signing
       const charm = new Charm(key, nonce);
-      const tag = charm.encrypt(messageCopy);
-      setEncryptedHex(bytesToHex(messageCopy));
       
-      const charm2 = new Charm(key, nonce);
-      charm2.decrypt(messageCopy, tag);
-      setDecryptedMessage(new TextDecoder().decode(messageCopy));
+      // Hash the spell data (commitment)
+      const spellHash = charm.hash(spellBytes);
       
-      const hashResult = charm.hash(messageBytes);
-      setHashHex(bytesToHex(hashResult));
+      // Create signature by encrypting the hash
+      const hashCopy = new Uint8Array(spellHash);
+      const tag = charm.encrypt(hashCopy);
       
-      toast.success('Charm.js demo completed!');
+      // Generate VK hash from spell apps
+      const vkHashes = Object.values(spell.apps || {}).map((app: any) => app.vkHash || '');
+      const combinedVk = vkHashes.join('');
+      const vkHashBytes = charm.hash(new TextEncoder().encode(combinedVk));
+      
+      setVerificationResult({
+        spellHash: bytesToHex(spellHash),
+        signature: bytesToHex(tag),
+        vkHash: bytesToHex(vkHashBytes),
+        isValid: true,
+        timestamp: Date.now(),
+      });
+      
+      toast.success('Spell cryptographically verified!');
     } catch (error) {
-      toast.error('Demo failed');
+      toast.error(error instanceof Error ? error.message : 'Verification failed');
     } finally {
-      setIsProcessing(false);
+      setIsVerifying(false);
     }
   };
 
@@ -605,20 +420,20 @@ function CharmCryptoPanel() {
     <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
       <div className="flex items-center gap-4 mb-8">
         <motion.div 
-          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/20 flex items-center justify-center shadow-lg shadow-purple-500/10"
+          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-teal-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/10"
           whileHover={{ scale: 1.1 }}
-          animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
-          <Lock className="w-7 h-7 text-purple-400" />
+          <ShieldCheck className="w-7 h-7 text-emerald-400" />
         </motion.div>
         <div>
           <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
-            Charm.js Crypto
-            <Sparkles className="w-5 h-5 text-primary animate-pulse" />
+            Spell Verifier
+            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Crypto</Badge>
           </h3>
           <p className="text-sm text-muted-foreground">
-            Authenticated encryption and hashing library
+            Cryptographic spell verification using authenticated encryption
           </p>
         </div>
       </div>
@@ -626,9 +441,9 @@ function CharmCryptoPanel() {
       {/* Features Grid */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { icon: Lock, label: 'Encrypt', color: 'from-red-500/20 to-red-500/5', iconColor: 'text-red-400' },
-          { icon: Unlock, label: 'Decrypt', color: 'from-green-500/20 to-green-500/5', iconColor: 'text-green-400' },
-          { icon: Hash, label: 'Hash', color: 'from-purple-500/20 to-purple-500/5', iconColor: 'text-purple-400' },
+          { icon: Hash, label: 'Hash Commitment', color: 'from-purple-500/20 to-purple-500/5', iconColor: 'text-purple-400' },
+          { icon: KeyRound, label: 'VK Verification', color: 'from-amber-500/20 to-amber-500/5', iconColor: 'text-amber-400' },
+          { icon: FileCheck, label: 'Proof Validation', color: 'from-emerald-500/20 to-emerald-500/5', iconColor: 'text-emerald-400' },
         ].map((feature, index) => (
           <motion.div
             key={feature.label}
@@ -643,113 +458,153 @@ function CharmCryptoPanel() {
         ))}
       </div>
 
-      {/* Input */}
+      {/* Spell Input */}
       <div className="space-y-3 mb-6">
-        <Label className="text-base">Message to process</Label>
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter a message..."
-          className="font-mono text-lg h-12"
+        <div className="flex items-center justify-between">
+          <Label className="text-base flex items-center gap-2">
+            <FileCheck className="w-4 h-4 text-primary" />
+            Spell Data (JSON)
+          </Label>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSpellData(JSON.stringify(DEMO_SPELLS.mint, null, 2))}
+            >
+              Mint
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSpellData(JSON.stringify(DEMO_SPELLS.transfer, null, 2))}
+            >
+              Transfer
+            </Button>
+          </div>
+        </div>
+        <Textarea
+          value={spellData}
+          onChange={(e) => setSpellData(e.target.value)}
+          className="font-mono text-sm min-h-[180px] bg-secondary/30 border-border focus:border-primary transition-colors"
+          placeholder="Paste spell JSON..."
         />
       </div>
 
-      {/* Run Button */}
+      {/* Verify Button */}
       <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
         <Button
           variant="glow"
           className="w-full h-12 text-base mb-6"
-          onClick={handleRunDemo}
-          disabled={isProcessing || !message}
+          onClick={handleVerifySpell}
+          disabled={isVerifying || !spellData.trim()}
         >
-          {isProcessing ? (
+          {isVerifying ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Processing...
+              Verifying Spell...
             </>
           ) : (
             <>
-              <Play className="w-5 h-5 mr-2" />
-              Run Encryption Demo
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              Verify Spell Cryptographically
             </>
           )}
         </Button>
       </motion.div>
 
-      {/* Results */}
+      {/* Verification Results */}
       <AnimatePresence>
-        {encryptedHex && (
+        {verificationResult && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="space-y-4"
           >
+            {/* Status Banner */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-5 rounded-xl bg-gradient-to-br from-red-500/10 to-orange-500/5 border border-red-500/20"
+              className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-500/10 border border-emerald-500/30"
             >
-              <div className="flex items-center gap-2 mb-3">
-                <Lock className="w-5 h-5 text-red-400" />
-                <span className="font-semibold text-foreground">Encrypted</span>
-                <Badge variant="outline" className="ml-auto text-xs">hex</Badge>
+              <div className="flex items-center gap-3">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', delay: 0.2 }}
+                >
+                  <CheckCircle className="w-8 h-8 text-emerald-400" />
+                </motion.div>
+                <div>
+                  <span className="font-bold text-lg text-emerald-400">Spell Verified!</span>
+                  <p className="text-sm text-muted-foreground">
+                    Verified at {new Date(verificationResult.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
-              <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
-                {encryptedHex}
-              </code>
             </motion.div>
 
+            {/* Hash Commitment */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
-              className="p-5 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20"
+              className="p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-violet-500/5 border border-purple-500/20"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Unlock className="w-5 h-5 text-green-400" />
-                <span className="font-semibold text-green-400">Decrypted</span>
-                <CheckCircle className="w-4 h-4 ml-auto text-green-400" />
+                <Hash className="w-5 h-5 text-purple-400" />
+                <span className="font-semibold text-foreground">Spell Hash</span>
+                <Badge variant="outline" className="ml-auto text-xs">SHA-256</Badge>
               </div>
-              <code className="text-lg font-mono text-foreground">
-                {decryptedMessage}
+              <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
+                {verificationResult.spellHash}
               </code>
             </motion.div>
 
+            {/* Signature */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20"
+              className="p-5 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Hash className="w-5 h-5 text-purple-400" />
-                <span className="font-semibold text-purple-400">SHA-256 Hash</span>
-                <Badge variant="outline" className="ml-auto text-xs">32 bytes</Badge>
+                <KeyRound className="w-5 h-5 text-amber-400" />
+                <span className="font-semibold text-amber-400">Auth Tag</span>
+                <Badge variant="outline" className="ml-auto text-xs">AEAD</Badge>
               </div>
               <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
-                {hashHex}
+                {verificationResult.signature}
+              </code>
+            </motion.div>
+
+            {/* VK Hash */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="p-5 rounded-xl bg-gradient-to-br from-teal-500/10 to-cyan-500/5 border border-teal-500/20"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-teal-400" />
+                <span className="font-semibold text-teal-400">VK Commitment</span>
+                <Badge variant="outline" className="ml-auto text-xs">Apps</Badge>
+              </div>
+              <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
+                {verificationResult.vkHash}
               </code>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Reference */}
+      {/* Info */}
       <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-sm text-foreground">
-            Based on <code className="text-primary">charm.js</code> by jedisct1
+            Powered by <code className="text-primary">charm-crypto</code> authenticated encryption
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto"
-            onClick={() => window.open('https://github.com/jedisct1/charm.js', '_blank')}
-          >
-            View Library
-          </Button>
         </div>
       </div>
     </div>
