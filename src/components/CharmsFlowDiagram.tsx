@@ -442,156 +442,128 @@ export function CharmsFlowDiagram() {
   );
 }
 
-// Rust Projects Panel Component
+// Rust Projects Panel Component - Simplified without code display
 function RustProjectsPanel() {
   const [selectedProject, setSelectedProject] = useState<'charmix' | 'spellChecker'>('charmix');
-  const [selectedFile, setSelectedFile] = useState<string | null>('src/lib.rs');
-
   const project = RUST_PROJECTS[selectedProject];
 
-  const getFileContent = (path: string): string | null => {
-    const parts = path.split('/');
-    let current: any = project.files;
-    
-    for (const part of parts) {
-      if (Array.isArray(current)) {
-        const found = current.find((f: any) => f.name === part);
-        if (found) {
-          if (found.children) {
-            current = found.children;
-          } else {
-            return found.content || null;
-          }
-        } else {
-          return null;
-        }
+  const countFiles = (files: any[]): number => {
+    return files.reduce((acc, file) => {
+      if (file.type === 'folder' && file.children) {
+        return acc + countFiles(file.children);
       }
-    }
-    return null;
-  };
-
-  const renderFileTree = (files: any[], depth = 0, path = ''): JSX.Element[] => {
-    return files.map((file, index) => {
-      const fullPath = path ? `${path}/${file.name}` : file.name;
-      const isFolder = file.type === 'folder';
-      const isSelected = selectedFile === fullPath;
-      
-      return (
-        <motion.div 
-          key={fullPath}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
-        >
-          <button
-            onClick={() => !isFolder && file.content && setSelectedFile(fullPath)}
-            className={`flex items-center gap-2 py-1.5 px-2 w-full text-left rounded-lg transition-all text-sm ${
-              isSelected 
-                ? 'bg-primary/20 text-primary' 
-                : file.content 
-                  ? 'hover:bg-secondary/50 text-foreground cursor-pointer'
-                  : 'text-muted-foreground cursor-default'
-            }`}
-            style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          >
-            {isFolder ? (
-              <FolderTree className="w-4 h-4 text-primary" />
-            ) : (
-              <File className={`w-4 h-4 ${file.name.endsWith('.rs') ? 'text-orange-400' : file.name.endsWith('.toml') ? 'text-blue-400' : 'text-muted-foreground'}`} />
-            )}
-            <span>{file.name}</span>
-          </button>
-          {isFolder && file.children && renderFileTree(file.children, depth + 1, fullPath)}
-        </motion.div>
-      );
-    });
+      return acc + 1;
+    }, 0);
   };
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      {/* Project Selector & File Tree */}
-      <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
-        <div className="flex items-center gap-3 mb-6">
-          <motion.div 
-            className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/30 to-orange-500/10 flex items-center justify-center"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
-            <Terminal className="w-6 h-6 text-orange-400" />
-          </motion.div>
-          <div>
-            <h3 className="font-semibold text-foreground text-lg">Rust Example Projects</h3>
-            <p className="text-sm text-muted-foreground">Based on CharmsDev/charms</p>
-          </div>
-        </div>
-
-        {/* Project Tabs */}
-        <div className="flex gap-2 mb-4">
-          {Object.entries(RUST_PROJECTS).map(([key, proj]) => (
-            <motion.div key={key} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                variant={selectedProject === key ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setSelectedProject(key as any);
-                  setSelectedFile('src/lib.rs');
-                }}
-              >
-                {proj.name}
-              </Button>
-            </motion.div>
-          ))}
-        </div>
-
-        <p className="text-sm text-muted-foreground mb-4">{project.description}</p>
-
-        {/* File Tree */}
-        <div className="space-y-1 p-3 rounded-xl bg-secondary/20 border border-border max-h-[300px] overflow-y-auto">
-          {renderFileTree(project.files)}
+    <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
+      <div className="flex items-center gap-4 mb-8">
+        <motion.div 
+          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/30 to-amber-500/20 flex items-center justify-center shadow-lg shadow-orange-500/10"
+          whileHover={{ scale: 1.1, rotate: 5 }}
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        >
+          <Terminal className="w-7 h-7 text-orange-400" />
+        </motion.div>
+        <div>
+          <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
+            Rust Example Projects
+            <Badge variant="outline" className="text-xs">Charms SDK</Badge>
+          </h3>
+          <p className="text-sm text-muted-foreground">Build programmable Bitcoin apps with Rust</p>
         </div>
       </div>
 
-      {/* Code Preview */}
-      <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <File className="w-4 h-4 text-orange-400" />
-            <span className="font-mono text-sm text-foreground">{selectedFile || 'Select a file'}</span>
-          </div>
-          {selectedFile && getFileContent(selectedFile) && (
+      {/* Project Tabs */}
+      <div className="flex gap-3 mb-6">
+        {Object.entries(RUST_PROJECTS).map(([key, proj], index) => (
+          <motion.div 
+            key={key} 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            whileHover={{ scale: 1.02 }} 
+            whileTap={{ scale: 0.98 }}
+          >
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const content = getFileContent(selectedFile);
-                if (content) {
-                  navigator.clipboard.writeText(content);
-                  toast.success('Code copied!');
-                }
-              }}
+              variant={selectedProject === key ? 'default' : 'outline'}
+              onClick={() => setSelectedProject(key as any)}
+              className={selectedProject === key ? 'shadow-lg shadow-primary/20' : ''}
             >
-              <Copy className="w-4 h-4" />
+              <FolderTree className="w-4 h-4 mr-2" />
+              {proj.name}
             </Button>
-          )}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Project Info Card */}
+      <motion.div 
+        key={selectedProject}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-6 rounded-xl bg-gradient-to-br from-secondary/50 to-secondary/20 border border-border"
+      >
+        <h4 className="font-semibold text-lg text-foreground mb-2">{project.name}</h4>
+        <p className="text-muted-foreground mb-6">{project.description}</p>
+        
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
+            <div className="text-2xl font-bold text-primary">{countFiles(project.files)}</div>
+            <div className="text-xs text-muted-foreground">Files</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
+            <div className="text-2xl font-bold text-orange-400">Rust</div>
+            <div className="text-xs text-muted-foreground">Language</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-card/50 border border-border">
+            <div className="text-2xl font-bold text-green-400">0.3.0</div>
+            <div className="text-xs text-muted-foreground">SDK Version</div>
+          </div>
         </div>
 
-        <div className="relative rounded-xl overflow-hidden bg-secondary/30 border border-border">
-          <pre className="p-4 overflow-x-auto max-h-[400px] overflow-y-auto">
-            <code className="text-sm font-mono text-foreground whitespace-pre">
-              {getFileContent(selectedFile || '') || '// Select a file to view its contents'}
-            </code>
-          </pre>
-          <div className="absolute top-2 right-2">
-            <Badge variant="outline" className="text-xs bg-card/80">
-              {selectedFile?.endsWith('.rs') ? 'Rust' : selectedFile?.endsWith('.toml') ? 'TOML' : 'Text'}
-            </Badge>
-          </div>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`https://github.com/CharmsDev/charms/tree/main/example-projects/${project.name}`, '_blank')}
+            className="flex-1"
+          >
+            <Code className="w-4 h-4 mr-2" />
+            View on GitHub
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard.writeText(`charms app new ${project.name}`);
+              toast.success('Command copied!');
+            }}
+            className="flex-1"
+          >
+            <Copy className="w-4 h-4 mr-2" />
+            Copy Command
+          </Button>
         </div>
+      </motion.div>
+
+      {/* Quick Start */}
+      <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="flex items-center gap-2 mb-2">
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Quick Start</span>
+        </div>
+        <code className="text-sm font-mono text-primary">
+          charms app new {project.name}
+        </code>
       </div>
     </div>
   );
 }
 
-// Charm.js Crypto Panel Component
+// Charm.js Crypto Panel Component - Simplified without code display
 function CharmCryptoPanel() {
   const [message, setMessage] = useState('Hello from Charm!');
   const [encryptedHex, setEncryptedHex] = useState<string | null>(null);
@@ -605,25 +577,19 @@ function CharmCryptoPanel() {
     try {
       await new Promise(r => setTimeout(r, 500));
       
-      // Create key and nonce
       const key = new Uint8Array(32).fill(1);
       const nonce = new Uint8Array(16).fill(2);
-      
-      // Encode message
       const messageBytes = new TextEncoder().encode(message);
       const messageCopy = new Uint8Array(messageBytes);
       
-      // Encrypt
       const charm = new Charm(key, nonce);
       const tag = charm.encrypt(messageCopy);
       setEncryptedHex(bytesToHex(messageCopy));
       
-      // Decrypt
       const charm2 = new Charm(key, nonce);
       charm2.decrypt(messageCopy, tag);
       setDecryptedMessage(new TextDecoder().decode(messageCopy));
       
-      // Hash
       const hashResult = charm.hash(messageBytes);
       setHashHex(bytesToHex(hashResult));
       
@@ -637,61 +603,54 @@ function CharmCryptoPanel() {
 
   return (
     <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-4 mb-8">
         <motion.div 
-          className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-purple-500/10 flex items-center justify-center"
+          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/20 flex items-center justify-center shadow-lg shadow-purple-500/10"
           whileHover={{ scale: 1.1 }}
           animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
+          transition={{ duration: 3, repeat: Infinity }}
         >
-          <Lock className="w-6 h-6 text-purple-400" />
+          <Lock className="w-7 h-7 text-purple-400" />
         </motion.div>
         <div>
-          <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            Charm.js Crypto Demo
-            <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+          <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
+            Charm.js Crypto
+            <Sparkles className="w-5 h-5 text-primary animate-pulse" />
           </h3>
           <p className="text-sm text-muted-foreground">
-            Encrypt, decrypt, and hash using <code className="text-primary">charm.js</code>
+            Authenticated encryption and hashing library
           </p>
         </div>
       </div>
 
-      {/* Code Example */}
-      <div className="mb-6 p-4 rounded-xl bg-secondary/20 border border-border">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground font-mono">basic.js example</span>
-          <Badge variant="outline" className="text-xs">JavaScript</Badge>
-        </div>
-        <pre className="text-xs font-mono text-foreground overflow-x-auto">
-{`// Create a key and nonce
-const key = new Uint8Array(32).fill(1);
-const nonce = new Uint8Array(16).fill(2);
-
-// Create a message
-const message = new TextEncoder().encode('${message}');
-
-// Encrypt
-const charm = new Charm(key, nonce);
-const tag = charm.encrypt(message);
-
-// Decrypt
-const charm2 = new Charm(key, nonce);
-charm2.decrypt(message, tag);
-
-// Hash
-const hash = charm.hash(message);`}
-        </pre>
+      {/* Features Grid */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          { icon: Lock, label: 'Encrypt', color: 'from-red-500/20 to-red-500/5', iconColor: 'text-red-400' },
+          { icon: Unlock, label: 'Decrypt', color: 'from-green-500/20 to-green-500/5', iconColor: 'text-green-400' },
+          { icon: Hash, label: 'Hash', color: 'from-purple-500/20 to-purple-500/5', iconColor: 'text-purple-400' },
+        ].map((feature, index) => (
+          <motion.div
+            key={feature.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className={`p-4 rounded-xl bg-gradient-to-br ${feature.color} border border-border text-center`}
+          >
+            <feature.icon className={`w-6 h-6 mx-auto mb-2 ${feature.iconColor}`} />
+            <span className="text-sm font-medium text-foreground">{feature.label}</span>
+          </motion.div>
+        ))}
       </div>
 
       {/* Input */}
-      <div className="space-y-2 mb-6">
-        <Label>Message to encrypt</Label>
+      <div className="space-y-3 mb-6">
+        <Label className="text-base">Message to process</Label>
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Enter a message..."
-          className="font-mono"
+          className="font-mono text-lg h-12"
         />
       </div>
 
@@ -699,19 +658,19 @@ const hash = charm.hash(message);`}
       <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
         <Button
           variant="glow"
-          className="w-full mb-6"
+          className="w-full h-12 text-base mb-6"
           onClick={handleRunDemo}
           disabled={isProcessing || !message}
         >
           {isProcessing ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               Processing...
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 mr-2" />
-              Run Charm.js Demo
+              <Play className="w-5 h-5 mr-2" />
+              Run Encryption Demo
             </>
           )}
         </Button>
@@ -727,45 +686,48 @@ const hash = charm.hash(message);`}
             className="space-y-4"
           >
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="p-4 rounded-xl bg-secondary/30 border border-border"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-5 rounded-xl bg-gradient-to-br from-red-500/10 to-orange-500/5 border border-red-500/20"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Lock className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-semibold text-foreground">Encrypted (hex)</span>
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="w-5 h-5 text-red-400" />
+                <span className="font-semibold text-foreground">Encrypted</span>
+                <Badge variant="outline" className="ml-auto text-xs">hex</Badge>
               </div>
-              <code className="text-xs font-mono text-muted-foreground break-all">
+              <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
                 {encryptedHex}
               </code>
             </motion.div>
 
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
-              className="p-4 rounded-xl bg-success/10 border border-success/30"
+              className="p-5 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Unlock className="w-4 h-4 text-success" />
-                <span className="text-sm font-semibold text-success">Decrypted</span>
+              <div className="flex items-center gap-2 mb-3">
+                <Unlock className="w-5 h-5 text-green-400" />
+                <span className="font-semibold text-green-400">Decrypted</span>
+                <CheckCircle className="w-4 h-4 ml-auto text-green-400" />
               </div>
-              <code className="text-sm font-mono text-foreground">
+              <code className="text-lg font-mono text-foreground">
                 {decryptedMessage}
               </code>
             </motion.div>
 
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30"
+              className="p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Hash className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-semibold text-purple-400">Hash (32 bytes)</span>
+              <div className="flex items-center gap-2 mb-3">
+                <Hash className="w-5 h-5 text-purple-400" />
+                <span className="font-semibold text-purple-400">SHA-256 Hash</span>
+                <Badge variant="outline" className="ml-auto text-xs">32 bytes</Badge>
               </div>
-              <code className="text-xs font-mono text-muted-foreground break-all">
+              <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
                 {hashHex}
               </code>
             </motion.div>
@@ -773,19 +735,22 @@ const hash = charm.hash(message);`}
         )}
       </AnimatePresence>
 
-      {/* Reference Link */}
-      <div className="mt-6 p-4 rounded-xl bg-secondary/20 border border-border">
-        <p className="text-xs text-muted-foreground">
-          <strong>Reference:</strong> Based on{' '}
-          <a 
-            href="https://github.com/jedisct1/charm.js/blob/master/examples/basic.js" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="text-primary hover:underline"
+      {/* Reference */}
+      <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-sm text-foreground">
+            Based on <code className="text-primary">charm.js</code> by jedisct1
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={() => window.open('https://github.com/jedisct1/charm.js', '_blank')}
           >
-            charm.js/examples/basic.js
-          </a>
-        </p>
+            View Library
+          </Button>
+        </div>
       </div>
     </div>
   );

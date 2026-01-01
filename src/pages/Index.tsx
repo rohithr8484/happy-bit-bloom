@@ -126,14 +126,12 @@ const Index = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button variant="glow" size="xl" onClick={() => setShowCreateForm(true)} className="w-full sm:w-auto">
-                  <Plus className="w-5 h-5" />
-                  Create Escrow
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => window.open("https://bitcoinos.build/ecosystem", "_blank")}>
-                  <ExternalLink className="w-4 h-4" />
-                  Explore Ecosystem
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button variant="glow" size="xl" onClick={() => setShowCreateForm(true)} className="w-full sm:w-auto animate-glow-pulse">
+                    <Plus className="w-5 h-5" />
+                    Create Escrow
+                  </Button>
+                </motion.div>
               </div>
             </motion.div>
 
