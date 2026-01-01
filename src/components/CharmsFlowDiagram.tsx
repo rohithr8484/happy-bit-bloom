@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { useRustZKProver, CHARMS_APPS } from "@/hooks/useRustZKProver";
+import { useRustZKProver } from "@/hooks/useRustZKProver";
 import { 
   isCorrect,
   getrandom,
@@ -44,14 +44,60 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Icon mapping for Charms apps
-const appIcons: Record<string, typeof Bitcoin> = {
-  lending: Bitcoin,
-  synthetic: Coins,
-  governance: Vote,
-  nft: Building2,
-  amm: TrendingUp,
-};
+// Rust Code Block Component
+function RustCodeBlock({ code, language, filename }: { 
+  code: string; 
+  language: 'rust' | 'toml' | 'bash';
+  filename?: string;
+}) {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    toast.success('Code copied!');
+  };
+
+  return (
+    <div className="relative group rounded-xl overflow-hidden border border-border bg-secondary/30">
+      {filename && (
+        <div className="flex items-center justify-between px-4 py-2 bg-secondary/50 border-b border-border">
+          <span className="text-xs font-mono text-muted-foreground">{filename}</span>
+          <Badge variant="outline" className="text-xs">{language}</Badge>
+        </div>
+      )}
+      <pre className="p-4 overflow-x-auto">
+        <code className="text-sm font-mono text-foreground whitespace-pre">{code}</code>
+      </pre>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleCopy}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Copy className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+}
+
+// Rust Module Card Component
+function RustModuleCard({ name, description, exports }: {
+  name: string;
+  description: string;
+  exports: string[];
+}) {
+  return (
+    <div className="p-4 rounded-xl border border-border bg-card/50 hover:bg-card/80 transition-colors">
+      <h4 className="font-mono text-sm font-semibold text-primary mb-1">{name}</h4>
+      <p className="text-sm text-muted-foreground mb-3">{description}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {exports.map((exp) => (
+          <Badge key={exp} variant="secondary" className="text-xs font-mono">
+            {exp}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Demo spells for the spell checker (Rust NormalizedSpell v2 format)
 const DEMO_SPELLS = {
@@ -159,8 +205,8 @@ export function CharmsFlowDiagram() {
           onClick={() => setActiveTab('useCases')}
           className="gap-2"
         >
-          <Sparkles className="w-4 h-4" />
-          What You Can Build
+          <Terminal className="w-4 h-4" />
+          Rust SDK
         </Button>
         <Button
           variant={activeTab === 'spellChecker' ? 'default' : 'outline'}
@@ -181,7 +227,7 @@ export function CharmsFlowDiagram() {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Use Cases Tab - Hackathon Winner Style */}
+        {/* Rust SDK Tab - Code Modules Display */}
         {activeTab === 'useCases' && (
           <motion.div
             key="useCases"
@@ -190,90 +236,179 @@ export function CharmsFlowDiagram() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            {/* Header - Matching reference image style */}
+            {/* Header */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-card/80 to-card border border-border/50">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-amber-500 to-primary" />
               <div className="p-6 md:p-8">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-amber-500/20 border border-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
-                    <Gem className="w-7 h-7 text-primary" />
+                    <Terminal className="w-7 h-7 text-primary" />
                   </div>
                   <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-foreground">
-                      What You Can Try Building On Charms
+                      Charms SDK for Rust
                     </h2>
                     <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                      <Terminal className="w-4 h-4" />
-                      Programmable Bitcoin applications powered by zero-knowledge proofs
+                      <Code className="w-4 h-4" />
+                      This is the only crate you need to get started coding a Charms app.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Use Cases Grid - Premium card style from reference */}
-            <div className="space-y-3">
-              {CHARMS_APPS.map((app, index) => {
-                const Icon = appIcons[app.id] || Gem;
-                return (
-                  <motion.div
-                    key={app.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.08 }}
-                    className="group relative flex items-center gap-4 p-5 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/40 hover:bg-card/80 transition-all duration-300 cursor-pointer"
-                  >
-                    {/* Colored icon container */}
-                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
-                        {app.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {app.description}
-                      </p>
-                    </div>
-                    
-                    {/* Arrow */}
-                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
-                    
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </motion.div>
-                );
-              })}
+            {/* Usage Section */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-foreground">Usage</h3>
               
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-muted-foreground italic text-center pt-4 text-sm"
-              >
-                ...you name it. Build anything programmable on Bitcoin with Rust.
-              </motion.p>
+              {/* Command to create new app */}
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Run this command to create a new Charms app:</p>
+                <RustCodeBlock 
+                  code="charms app new my-app" 
+                  language="bash"
+                />
+              </div>
+              
+              <p className="text-muted-foreground">
+                It will create a new directory called <code className="px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono text-sm">my-app</code> with a basic Charms app template.
+              </p>
+
+              {/* Cargo.toml */}
+              <div className="space-y-2">
+                <p className="text-muted-foreground">
+                  It'll have this in <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-sm">Cargo.toml</code>:
+                </p>
+                <RustCodeBlock 
+                  code={`[dependencies]
+charms-sdk = { version = "0.3.0" }`}
+                  language="toml"
+                  filename="Cargo.toml"
+                />
+              </div>
+
+              {/* main.rs */}
+              <div className="space-y-2">
+                <p className="text-muted-foreground">
+                  This is how the entire <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-sm">src/main.rs</code> looks like:
+                </p>
+                <RustCodeBlock 
+                  code={`#![no_main]
+charms_sdk::main!(my_app::app_contract);`}
+                  language="rust"
+                  filename="src/main.rs"
+                />
+              </div>
+
+              {/* lib.rs */}
+              <div className="space-y-2">
+                <p className="text-muted-foreground">
+                  The most important function in the app is <code className="px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono text-sm">app_contract</code> in <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-sm">src/lib.rs</code>:
+                </p>
+                <RustCodeBlock 
+                  code={`use charms_sdk::data::{
+    check, App, Data, Transaction, NFT, TOKEN,
+};
+
+pub fn app_contract(app: &App, tx: &Transaction, x: &Data, w: &Data) -> bool {
+    match app.tag {
+        NFT => {
+            check!(nft_contract_satisfied(app, tx, x, w))
+        }
+        TOKEN => {
+            check!(token_contract_satisfied(app, tx, x, w))
+        }
+        _ => todo!(),
+    }
+    true
+}`}
+                  language="rust"
+                  filename="src/lib.rs"
+                />
+              </div>
+
+              {/* Additional Modules */}
+              <div className="space-y-4 pt-4">
+                <h3 className="text-xl font-semibold text-foreground">SDK Modules</h3>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  <RustModuleCard
+                    name="charms_sdk::data"
+                    description="Core data types for Charms applications"
+                    exports={['App', 'Data', 'Transaction', 'NFT', 'TOKEN', 'check!']}
+                  />
+                  <RustModuleCard
+                    name="charms_sdk::spell"
+                    description="Spell construction and verification"
+                    exports={['Spell', 'NormalizedSpell', 'SpellInput', 'SpellOutput']}
+                  />
+                  <RustModuleCard
+                    name="charms_sdk::crypto"
+                    description="Cryptographic primitives"
+                    exports={['hash', 'verify_signature', 'MerkleTree', 'Proof']}
+                  />
+                  <RustModuleCard
+                    name="charms_sdk::bitcoin"
+                    description="Bitcoin transaction utilities"
+                    exports={['Utxo', 'Script', 'Witness', 'Txid']}
+                  />
+                </div>
+              </div>
+
+              {/* Example Token Contract */}
+              <div className="space-y-2 pt-4">
+                <h3 className="text-xl font-semibold text-foreground">Example: Token Contract</h3>
+                <RustCodeBlock 
+                  code={`fn token_contract_satisfied(
+    app: &App, 
+    tx: &Transaction, 
+    x: &Data, 
+    w: &Data
+) -> bool {
+    // Verify token supply conservation
+    let input_sum: u64 = tx.inputs.iter()
+        .filter(|i| i.app_id == app.id)
+        .map(|i| i.amount)
+        .sum();
+    
+    let output_sum: u64 = tx.outputs.iter()
+        .filter(|o| o.app_id == app.id)
+        .map(|o| o.amount)
+        .sum();
+    
+    // Check: inputs >= outputs (burn allowed)
+    check!(input_sum >= output_sum);
+    
+    // Verify all signatures
+    for input in tx.inputs.iter() {
+        check!(verify_signature(&input.signature, &tx.sighash));
+    }
+    
+    true
+}`}
+                  language="rust"
+                  filename="src/token.rs"
+                />
+              </div>
             </div>
 
             {/* Quick Links */}
             <div className="flex flex-wrap gap-3 pt-4">
               <Button
                 variant="outline"
-                onClick={() => window.open('https://github.com/CharmsDev/charms', '_blank')}
+                onClick={() => window.open('https://github.com/CharmsDev/charms/tree/main/charms-sdk', '_blank')}
                 className="gap-2"
               >
                 <Code className="w-4 h-4" />
-                CharmsDev GitHub
+                charms-sdk on GitHub
               </Button>
               <Button
                 variant="outline"
-                onClick={() => window.open('https://docs.charms.dev', '_blank')}
+                onClick={() => window.open('https://crates.io/crates/charms-sdk', '_blank')}
                 className="gap-2"
               >
                 <ExternalLink className="w-4 h-4" />
-                Documentation
+                crates.io
               </Button>
               <Button
                 variant="outline"
