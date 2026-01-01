@@ -181,7 +181,7 @@ export function CharmsFlowDiagram() {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Use Cases Tab - Main focus from the image */}
+        {/* Use Cases Tab - Hackathon Winner Style */}
         {activeTab === 'useCases' && (
           <motion.div
             key="useCases"
@@ -190,19 +190,20 @@ export function CharmsFlowDiagram() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            {/* Header */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5 rounded-2xl" />
-              <div className="relative p-6 rounded-2xl border border-primary/20">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-                    <Gem className="w-7 h-7 text-primary-foreground" />
+            {/* Header - Matching reference image style */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-card/80 to-card border border-border/50">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-amber-500 to-primary" />
+              <div className="p-6 md:p-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-amber-500/20 border border-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                    <Gem className="w-7 h-7 text-primary" />
                   </div>
                   <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-foreground">
                       What You Can Try Building On Charms
                     </h2>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-muted-foreground mt-1 flex items-center gap-2">
+                      <Terminal className="w-4 h-4" />
                       Programmable Bitcoin applications powered by zero-knowledge proofs
                     </p>
                   </div>
@@ -210,37 +211,50 @@ export function CharmsFlowDiagram() {
               </div>
             </div>
 
-            {/* Use Cases Grid - Using CHARMS_APPS from Rust hook */}
-            <div className="space-y-4">
+            {/* Use Cases Grid - Premium card style from reference */}
+            <div className="space-y-3">
               {CHARMS_APPS.map((app, index) => {
                 const Icon = appIcons[app.id] || Gem;
                 return (
                   <motion.div
                     key={app.id}
-                    initial={{ opacity: 0, x: -30 }}
+                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group flex items-start gap-4 p-5 rounded-xl bg-card/60 border border-border hover:border-primary/40 hover:bg-card/80 transition-all duration-300 cursor-pointer"
+                    transition={{ delay: index * 0.08 }}
+                    className="group relative flex items-center gap-4 p-5 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/40 hover:bg-card/80 transition-all duration-300 cursor-pointer"
                   >
-                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                    {/* Colored icon container */}
+                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
+                    
+                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
                         {app.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {app.description}
                       </p>
                     </div>
+                    
+                    {/* Arrow */}
                     <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   </motion.div>
                 );
               })}
               
-              <p className="text-muted-foreground italic text-center pt-2">
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-muted-foreground italic text-center pt-4 text-sm"
+              >
                 ...you name it. Build anything programmable on Bitcoin with Rust.
-              </p>
+              </motion.p>
             </div>
 
             {/* Quick Links */}
