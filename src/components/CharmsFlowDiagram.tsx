@@ -1,10 +1,10 @@
 /**
- * Charms Protocol Interactive Panel
+ * Charms Protocol Interactive Panel (Rust-Style)
  * 
  * Features:
- * - What You Can Build On Charms use cases (from reference image)
- * - Interactive Spell Checker using CharmsDev spell validation
- * - Spell builder with live preview
+ * - What You Can Build On Charms use cases with Rust spell builders
+ * - Interactive Spell Checker using is_correct from Rust SDK
+ * - Spell builder with live NormalizedSpell v2 preview
  */
 
 import { useState } from "react";
@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { useRustZKProver, CHARMS_APPS } from "@/hooks/useRustZKProver";
 import { 
-  charmsSDK, 
-  isSpellCorrect,
-  NormalizedSpell,
-  SpellVerificationResult,
-} from "@/lib/charms-sdk";
+  isCorrect,
+  getrandom,
+  type NormalizedSpell,
+  type SpellValidation,
+} from "@/lib/rust-zk-prover";
 import { 
   Gem, 
   Bitcoin,
@@ -37,54 +38,28 @@ import {
   ExternalLink,
   Copy,
   Play,
-  RefreshCw,
-  Wallet,
   Building2,
   TrendingUp,
+  Terminal,
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Use cases from the reference image
-const useCases = [
-  { 
-    icon: Bitcoin, 
-    title: 'Bitcoin Lending Protocol',
-    description: 'Collateralized lending with programmable interest rates and liquidation logic',
-    color: 'from-orange-500 to-amber-500',
-  },
-  { 
-    icon: Coins, 
-    title: 'Synthetic Assets / Bitcoin Backed Stables',
-    description: 'Create stablecoins and synthetic assets backed by BTC collateral',
-    color: 'from-green-500 to-emerald-500',
-  },
-  { 
-    icon: Vote, 
-    title: 'Governance Tokens and Contracts',
-    description: 'On-chain voting, DAOs, and token-weighted governance systems',
-    color: 'from-purple-500 to-indigo-500',
-  },
-  { 
-    icon: Building2, 
-    title: 'NFT Marketplaces & Collections',
-    description: 'Ordinals-compatible NFTs with programmable royalties and trading',
-    color: 'from-pink-500 to-rose-500',
-  },
-  { 
-    icon: TrendingUp, 
-    title: 'DeFi Primitives & AMMs',
-    description: 'Automated market makers, liquidity pools, and yield strategies',
-    color: 'from-cyan-500 to-blue-500',
-  },
-];
+// Icon mapping for Charms apps
+const appIcons: Record<string, typeof Bitcoin> = {
+  lending: Bitcoin,
+  synthetic: Coins,
+  governance: Vote,
+  nft: Building2,
+  amm: TrendingUp,
+};
 
-// Demo spells for the spell checker
+// Demo spells for the spell checker (Rust NormalizedSpell v2 format)
 const DEMO_SPELLS = {
   mint: {
     version: 2 as const,
     apps: {
       '$token': {
-        vk_hash: 'dcb845362a0c5b7c8f9e4d3a2b1c0f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a',
+        vkHash: 'dcb845362a0c5b7c8f9e4d3a2b1c0f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a',
         namespace: 'token',
       },
     },
@@ -101,7 +76,7 @@ const DEMO_SPELLS = {
     version: 2 as const,
     apps: {
       '$transfer': {
-        vk_hash: 'f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1dcb845362a0c5b7c8f9e4d3a2b1c',
+        vkHash: 'f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1dcb845362a0c5b7c8f9e4d3a2b1c',
         namespace: 'transfer',
       },
     },
@@ -117,40 +92,47 @@ const DEMO_SPELLS = {
 };
 
 export function CharmsFlowDiagram() {
+  const { buildCharmsApp, verifySpell } = useRustZKProver();
   const [activeTab, setActiveTab] = useState<'useCases' | 'spellChecker' | 'builder'>('useCases');
   const [spellInput, setSpellInput] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
-  const [verificationResult, setVerificationResult] = useState<SpellVerificationResult | null>(null);
+  const [verificationResult, setVerificationResult] = useState<SpellValidation | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<'mint' | 'transfer'>('mint');
 
   const handleVerifySpell = async () => {
     setIsVerifying(true);
     setVerificationResult(null);
+    setVerificationError(null);
 
     try {
       await new Promise(r => setTimeout(r, 1500)); // Simulate zkVM verification time
       
-      const spell: NormalizedSpell = JSON.parse(spellInput);
-      const result = isSpellCorrect(
-        spell,
+      const spell = JSON.parse(spellInput) as NormalizedSpell;
+      
+      // Generate vk hash using getrandom
+      const vkResult = getrandom.getHex(32);
+      const selfVk = vkResult.ok ? vkResult.value : '0'.repeat(64);
+      
+      // Call Rust-style is_correct function
+      const result = isCorrect(
+        selfVk,
         [],
-        { type: 'mint', data: {} },
-        'self_vk_' + Date.now().toString(16),
-        []
+        spell,
+        spell.ins.map(i => ({ txid: i.txid, vout: i.vout })),
+        { type: 'mint', publicInputs: {}, witnessData: new Uint8Array(64) }
       );
       
-      setVerificationResult(result);
-      
-      if (result.valid) {
-        toast.success('Spell verified successfully!');
+      if (result.ok) {
+        setVerificationResult(result.value);
+        toast.success('Spell verified successfully! is_correct() = true');
       } else {
-        toast.error(result.error || 'Spell verification failed');
+        const errResult = result as { ok: false; error: { message: string } };
+        setVerificationError(errResult.error.message);
+        toast.error(errResult.error.message);
       }
     } catch (error) {
-      setVerificationResult({
-        valid: false,
-        error: error instanceof Error ? error.message : 'Invalid spell JSON',
-      });
+      setVerificationError(error instanceof Error ? error.message : 'Invalid spell JSON');
       toast.error('Invalid spell format');
     } finally {
       setIsVerifying(false);
@@ -228,33 +210,36 @@ export function CharmsFlowDiagram() {
               </div>
             </div>
 
-            {/* Use Cases Grid */}
+            {/* Use Cases Grid - Using CHARMS_APPS from Rust hook */}
             <div className="space-y-4">
-              {useCases.map((useCase, index) => (
-                <motion.div
-                  key={useCase.title}
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="group flex items-start gap-4 p-5 rounded-xl bg-card/60 border border-border hover:border-primary/40 hover:bg-card/80 transition-all duration-300 cursor-pointer"
-                >
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${useCase.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                    <useCase.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
-                      {useCase.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {useCase.description}
-                    </p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
-                </motion.div>
-              ))}
+              {CHARMS_APPS.map((app, index) => {
+                const Icon = appIcons[app.id] || Gem;
+                return (
+                  <motion.div
+                    key={app.id}
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group flex items-start gap-4 p-5 rounded-xl bg-card/60 border border-border hover:border-primary/40 hover:bg-card/80 transition-all duration-300 cursor-pointer"
+                  >
+                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
+                        {app.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {app.description}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                  </motion.div>
+                );
+              })}
               
               <p className="text-muted-foreground italic text-center pt-2">
-                ...you name it. Build anything programmable on Bitcoin.
+                ...you name it. Build anything programmable on Bitcoin with Rust.
               </p>
             </div>
 
@@ -390,8 +375,8 @@ export function CharmsFlowDiagram() {
                       </div>
                     )}
                     
-                    {!verificationResult.valid && verificationResult.error && (
-                      <p className="text-sm text-destructive mt-1">{verificationResult.error}</p>
+                    {verificationError && (
+                      <p className="text-sm text-destructive mt-1">{verificationError}</p>
                     )}
                   </motion.div>
                 )}
@@ -446,6 +431,7 @@ export function CharmsFlowDiagram() {
 }
 
 function SpellBuilder() {
+  const { buildCharmsApp } = useRustZKProver();
   const [appType, setAppType] = useState<'token' | 'escrow' | 'nft'>('token');
   const [ticker, setTicker] = useState('CHARM');
   const [amount, setAmount] = useState('1000000');
@@ -459,20 +445,24 @@ function SpellBuilder() {
     try {
       await new Promise(r => setTimeout(r, 1000));
       
-      const fundingUtxo = `${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}:0`;
+      const txidResult = getrandom.getHex(32);
+      const fundingUtxo = `${txidResult.ok ? txidResult.value : '0'.repeat(64)}:0`;
       
-      const payload = charmsSDK.createTokenSpellPayload({
-        ticker,
-        amount: parseInt(amount),
-        fundingUtxo,
-        fundingValue: parseInt(amount) + 10000,
-        changeAddress: 'bc1q_change_address',
-        recipientAddress: recipient,
-        feeRate: 2,
+      // Use Rust-style spell builder
+      const spellResult = buildCharmsApp('lending', {
+        txid: fundingUtxo.split(':')[0],
+        vout: 0,
+        collateralValue: parseInt(amount) + 10000,
+        borrowAmount: parseInt(amount),
+        borrowerAddress: recipient,
       });
       
-      setGeneratedPayload(JSON.stringify(payload, null, 2));
-      toast.success('Spell payload generated!');
+      if (spellResult.ok) {
+        setGeneratedPayload(JSON.stringify(spellResult.value, null, 2));
+        toast.success('Spell payload generated using Rust builder!');
+      } else {
+        toast.error('Failed to generate spell');
+      }
     } catch (error) {
       toast.error('Failed to generate spell');
     } finally {

@@ -90,9 +90,13 @@ export const getrandom = {
    */
   getU32(): Result<number, Error> {
     const bytesResult = this.getBytes(4);
-    if (!bytesResult.ok) return Err(bytesResult.error);
+    if (!bytesResult.ok) {
+      const errResult = bytesResult as { ok: false; error: Error };
+      return { ok: false, error: errResult.error };
+    }
     const bytes = bytesResult.value;
-    return Ok((bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0);
+    const val = (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
+    return { ok: true, value: val };
   },
 
   /**
@@ -100,8 +104,15 @@ export const getrandom = {
    */
   getHex(byteLen: number): Result<string, Error> {
     const bytesResult = this.getBytes(byteLen);
-    if (!bytesResult.ok) return bytesResult;
-    return Ok(Array.from(bytesResult.value).map(b => b.toString(16).padStart(2, '0')).join(''));
+    if (!bytesResult.ok) {
+      const errResult = bytesResult as { ok: false; error: Error };
+      return { ok: false, error: errResult.error };
+    }
+    let hex = '';
+    for (let i = 0; i < bytesResult.value.length; i++) {
+      hex += bytesResult.value[i].toString(16).padStart(2, '0');
+    }
+    return { ok: true, value: hex };
   },
 };
 

@@ -1,8 +1,8 @@
 /**
- * Boundless ZK Verification Panel
+ * Rust-Style ZK Verification Panel
  * 
  * UI for generating and verifying zero-knowledge proofs
- * Powered by Boundless and Kailua
+ * Powered by SP1 zkVM and Charms Protocol (Rust patterns)
  */
 
 import { useState } from "react";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useZKVerification, ProofType, ZKProof } from "@/hooks/useZKVerification";
+import { useRustZKProver, type RustProofResult } from "@/hooks/useRustZKProver";
+import { type ProofType, PROOF_CONFIGS } from "@/lib/rust-zk-prover";
 import {
   Shield,
   Zap,
@@ -27,6 +28,7 @@ import {
   Coins,
   FileCheck,
   RefreshCw,
+  Code,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -41,9 +43,9 @@ const proofTypeIcons: Record<ProofType, typeof Shield> = {
 
 const statusConfig = {
   pending: { color: 'bg-muted text-muted-foreground', label: 'Pending', icon: Clock },
-  generating: { color: 'bg-primary/20 text-primary', label: 'Generating', icon: Loader2 },
+  generating: { color: 'bg-primary/20 text-primary', label: 'Generating (SP1 zkVM)', icon: Loader2 },
   verifying: { color: 'bg-warning/20 text-warning', label: 'Verifying', icon: Shield },
-  verified: { color: 'bg-success/20 text-success', label: 'Verified', icon: CheckCircle },
+  verified: { color: 'bg-success/20 text-success', label: 'Verified ✓', icon: CheckCircle },
   failed: { color: 'bg-destructive/20 text-destructive', label: 'Failed', icon: AlertCircle },
 };
 
@@ -55,7 +57,7 @@ export function ZKVerificationPanel() {
     activeProof,
     generateProof,
     getProofConfig,
-  } = useZKVerification();
+  } = useRustZKProver();
 
   const [selectedType, setSelectedType] = useState<ProofType>('utxo_ownership');
   const [inputValue, setInputValue] = useState('');
@@ -89,28 +91,28 @@ export function ZKVerificationPanel() {
             <Shield className="w-4 h-4 text-primary" />
             <span className="text-xs text-muted-foreground">Proofs Verified</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{stats.proofsVerified}</p>
+          <p className="text-2xl font-bold text-foreground">{stats.verifiedProofs}</p>
         </div>
         <div className="p-4 rounded-xl bg-card border border-border">
           <div className="flex items-center gap-2 mb-1">
             <Zap className="w-4 h-4 text-primary" />
             <span className="text-xs text-muted-foreground">Avg Time</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{stats.averageProofTime.toFixed(1)}s</p>
+          <p className="text-2xl font-bold text-foreground">{(stats.averageTimeMs / 1000).toFixed(1)}s</p>
         </div>
         <div className="p-4 rounded-xl bg-card border border-border">
           <div className="flex items-center gap-2 mb-1">
             <Cpu className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Total Gas</span>
+            <span className="text-xs text-muted-foreground">Total Cycles</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{(stats.totalGasUsed / 1000).toFixed(0)}k</p>
+          <p className="text-2xl font-bold text-foreground">{(stats.totalCycles / 1_000_000).toFixed(1)}M</p>
         </div>
         <div className="p-4 rounded-xl bg-card border border-border">
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Generated</span>
+            <span className="text-xs text-muted-foreground">Total Proofs</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{stats.proofsGenerated}</p>
+          <p className="text-2xl font-bold text-foreground">{stats.totalProofs}</p>
         </div>
       </div>
 
@@ -126,7 +128,7 @@ export function ZKVerificationPanel() {
           </div>
           <div>
             <h3 className="font-semibold text-foreground">Generate ZK Proof</h3>
-            <p className="text-sm text-muted-foreground">Powered by Boundless & RISC Zero</p>
+            <p className="text-sm text-muted-foreground">Powered by SP1 zkVM & Charms (Rust)</p>
           </div>
         </div>
 
@@ -153,8 +155,8 @@ export function ZKVerificationPanel() {
                   <p className="font-medium text-sm text-foreground">{typeConfig.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">{typeConfig.description}</p>
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-muted-foreground">~{typeConfig.estimatedTime}s</span>
-                    <span className="text-xs text-muted-foreground">{typeConfig.estimatedCost} ETH</span>
+                    <span className="text-xs text-muted-foreground">~{Math.round(typeConfig.estimatedTimeMs / 1000)}s</span>
+                    <span className="text-xs text-muted-foreground">{(typeConfig.costSats / 100_000_000).toFixed(5)} BTC</span>
                   </div>
                 </button>
               );
@@ -288,17 +290,11 @@ export function ZKVerificationPanel() {
   );
 }
 
-function ProofCard({ proof, onCopy }: { proof: ZKProof; onCopy: (text: string, label: string) => void }) {
+function ProofCard({ proof, onCopy }: { proof: RustProofResult; onCopy: (text: string, label: string) => void }) {
   const Icon = proofTypeIcons[proof.type];
   const status = statusConfig[proof.status];
   const StatusIcon = status.icon;
-  const config = {
-    utxo_ownership: { name: 'UTXO Ownership' },
-    balance_threshold: { name: 'Balance Threshold' },
-    transaction_inclusion: { name: 'TX Inclusion' },
-    state_transition: { name: 'State Transition' },
-    collateral_ratio: { name: 'Collateral Ratio' },
-  }[proof.type];
+  const config = PROOF_CONFIGS[proof.type];
 
   return (
     <motion.div
@@ -336,20 +332,37 @@ function ProofCard({ proof, onCopy }: { proof: ZKProof; onCopy: (text: string, l
               <Copy className="w-3 h-3" />
             </button>
           </div>
-          <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
-            <span className="text-muted-foreground">Output Hash</span>
-            <button
-              onClick={() => onCopy(proof.outputHash, 'Output hash')}
-              className="flex items-center gap-1 font-mono text-foreground hover:text-primary"
-            >
-              {proof.outputHash.slice(0, 10)}...{proof.outputHash.slice(-6)}
-              <Copy className="w-3 h-3" />
-            </button>
-          </div>
-          {proof.gasUsed && (
+          {proof.outputHash && (
+            <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
+              <span className="text-muted-foreground">Output Hash</span>
+              <button
+                onClick={() => onCopy(proof.outputHash!, 'Output hash')}
+                className="flex items-center gap-1 font-mono text-foreground hover:text-primary"
+              >
+                {proof.outputHash.slice(0, 10)}...{proof.outputHash.slice(-6)}
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          {proof.validation && (
+            <div className="flex items-center justify-between p-2 rounded bg-success/10 border border-success/30">
+              <span className="text-success">is_correct()</span>
+              <span className="font-mono text-success flex items-center gap-1">
+                <Code className="w-3 h-3" />
+                {proof.validation.proofCommitment.slice(0, 8)}...
+              </span>
+            </div>
+          )}
+          {proof.cyclesUsed && (
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>Gas Used</span>
-              <span className="font-mono">{proof.gasUsed.toLocaleString()}</span>
+              <span>Cycles Used</span>
+              <span className="font-mono">{(proof.cyclesUsed / 1_000_000).toFixed(2)}M</span>
+            </div>
+          )}
+          {proof.executionTimeMs && (
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Execution Time</span>
+              <span className="font-mono">{(proof.executionTimeMs / 1000).toFixed(2)}s</span>
             </div>
           )}
         </div>
