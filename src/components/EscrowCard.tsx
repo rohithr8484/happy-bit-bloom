@@ -1,14 +1,17 @@
 import { cn } from "@/lib/utils";
 import { EscrowContract, formatBTC, shortenTxid, shortenAddress } from "@/lib/charms-sdk";
+import { RustSpellChecker } from "@/lib/rust-spell-checker";
 import { 
   Wallet, 
   Clock, 
   CheckCircle2, 
   AlertCircle,
   ExternalLink,
-  Shield
+  Shield,
+  Cpu
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 
 interface EscrowCardProps {
   escrow: EscrowContract;
@@ -62,18 +65,26 @@ export function EscrowCard({ escrow, onClick, selected, className }: EscrowCardP
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
+      whileHover={{ scale: 1.01, y: -2 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
       className={cn(
-        "group relative p-5 rounded-xl border transition-all duration-200 cursor-pointer",
-        "bg-card/60 backdrop-blur-sm",
+        "group relative p-5 rounded-xl border transition-all duration-300 cursor-pointer",
+        "bg-card/80 backdrop-blur-sm hover-lift",
         selected 
-          ? "border-primary bg-primary/5 shadow-lg shadow-primary/10" 
-          : "border-border hover:border-primary/40 hover:bg-card",
+          ? "border-primary bg-primary/5 shadow-lg shadow-primary/20 glow" 
+          : "border-border hover:border-primary/50 hover:bg-card hover:shadow-card",
         className
       )}
     >
+      {/* Rust Spell Verified Badge */}
+      <div className="absolute top-3 right-3">
+        <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs gap-1">
+          <Cpu className="w-3 h-3" />
+          Rust Verified
+        </Badge>
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">

@@ -5,10 +5,16 @@
  * - Oracle-confirmed task completion
  * - Maintainer approval signing
  * - Deadline-based automatic refund
+ * - Rust spell checker validation
  */
 
 import { useState, useCallback } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
+import { 
+  RustSpellChecker, 
+  EscrowState,
+  type EscrowCheckResult 
+} from '@/lib/rust-spell-checker';
 
 export type BountyStatus = 
   | 'open' 
@@ -165,6 +171,7 @@ export interface UseBountyReturn {
   
   selectBounty: (id: string | null) => void;
   checkDeadlines: () => void;
+  validateBountySpell: (bountyId: string, action: 'claim' | 'release' | 'refund') => EscrowCheckResult;
 }
 
 export function useBounty(): UseBountyReturn {
@@ -368,6 +375,54 @@ export function useBounty(): UseBountyReturn {
     }));
   }, []);
 
+  // Validate bounty spell using Rust spell checker
+  const validateBountySpell = useCallback((
+    bountyId: string,
+    action: 'claim' | 'release' | 'refund'
+  ): EscrowCheckResult => {
+    const bounty = bounties.find(b => b.id === bountyId);
+    if (!bounty) {
+      return {
+        valid: false,
+        currentState: null,
+        nextState: null,
+        transitionValid: false,
+        errors: ['Bounty not found'],
+      };
+    }
+
+    // Map bounty status to escrow state
+    const currentState = (() => {
+      switch (bounty.status) {
+        case 'open': return EscrowState.Created;
+        case 'claimed': 
+        case 'submitted':
+        case 'approved': return EscrowState.Funded;
+        case 'completed': return EscrowState.Released;
+        case 'disputed': return EscrowState.Disputed;
+        case 'refunded': return EscrowState.Refunded;
+        default: return EscrowState.Created;
+      }
+    })();
+
+    const nextState = (() => {
+      switch (action) {
+        case 'claim': return EscrowState.Funded;
+        case 'release': return EscrowState.Released;
+        case 'refund': return EscrowState.Refunded;
+      }
+    })();
+
+    const { app, tx } = RustSpellChecker.buildEscrowTransaction({
+      appTag: `bounty:${bountyId}`,
+      currentState,
+      nextState,
+      amount: BigInt(bounty.amount),
+    });
+
+    return RustSpellChecker.escrowCheck(app, tx, RustSpellChecker.Data.empty(), RustSpellChecker.Data.empty());
+  }, [bounties]);
+
   return {
     bounties,
     selectedBounty,
@@ -383,5 +438,6 @@ export function useBounty(): UseBountyReturn {
     refundBounty,
     selectBounty,
     checkDeadlines,
+    validateBountySpell,
   };
 }

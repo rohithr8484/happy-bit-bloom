@@ -5,6 +5,11 @@ import {
   Milestone,
   TransactionResult 
 } from '@/lib/charms-sdk';
+import { 
+  RustSpellChecker, 
+  EscrowState,
+  type EscrowCheckResult 
+} from '@/lib/rust-spell-checker';
 
 // Demo escrows for showcasing the UI
 const DEMO_ESCROWS: EscrowContract[] = [
@@ -95,6 +100,7 @@ export interface UseEscrowReturn {
   releaseMilestone: (escrowId: string, milestoneId: string) => Promise<TransactionResult>;
   disputeMilestone: (escrowId: string, milestoneId: string, reason: string) => Promise<void>;
   refreshEscrow: (escrowId: string) => Promise<void>;
+  validateEscrowSpell: (escrowId: string, action: 'fund' | 'release' | 'dispute') => EscrowCheckResult;
 }
 
 export interface CreateEscrowParams {
@@ -303,6 +309,56 @@ export function useEscrow(): UseEscrowReturn {
     }
   }, [escrows]);
 
+  // Validate escrow spell using Rust spell checker logic
+  const validateEscrowSpell = useCallback((
+    escrowId: string,
+    action: 'fund' | 'release' | 'dispute'
+  ): EscrowCheckResult => {
+    const escrow = escrows.find(e => e.id === escrowId);
+    if (!escrow) {
+      return {
+        valid: false,
+        currentState: null,
+        nextState: null,
+        transitionValid: false,
+        errors: ['Escrow not found'],
+      };
+    }
+
+    // Map escrow status to Rust EscrowState
+    const currentState = (() => {
+      switch (escrow.status) {
+        case 'active': return EscrowState.Funded;
+        case 'completed': return EscrowState.Released;
+        case 'disputed': return EscrowState.Disputed;
+        case 'cancelled': return EscrowState.Refunded;
+        default: return EscrowState.Created;
+      }
+    })();
+
+    // Determine next state based on action
+    const nextState = (() => {
+      switch (action) {
+        case 'fund': return EscrowState.Funded;
+        case 'release': return EscrowState.Released;
+        case 'dispute': return EscrowState.Disputed;
+      }
+    })();
+
+    // Build transaction for validation
+    const { app, tx } = RustSpellChecker.buildEscrowTransaction({
+      appTag: `escrow:${escrowId}`,
+      currentState,
+      nextState,
+      amount: BigInt(escrow.totalAmount),
+    });
+
+    // Run Rust spell checker
+    const result = RustSpellChecker.escrowCheck(app, tx, RustSpellChecker.Data.empty(), RustSpellChecker.Data.empty());
+    
+    return result;
+  }, [escrows]);
+
   return {
     escrows,
     selectedEscrow,
@@ -314,5 +370,6 @@ export function useEscrow(): UseEscrowReturn {
     releaseMilestone,
     disputeMilestone,
     refreshEscrow,
+    validateEscrowSpell,
   };
 }

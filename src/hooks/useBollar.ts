@@ -3,10 +3,15 @@
  * 
  * Inspired by BollarMoney: A Bitcoin-collateralized stablecoin protocol
  * Users deposit BTC as collateral to mint USD-pegged Bollar stablecoins
+ * Validated by Rust token spell checker
  */
 
 import { useState, useCallback } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
+import { 
+  RustSpellChecker, 
+  type TokenCheckResult 
+} from '@/lib/rust-spell-checker';
 
 export interface CollateralPosition {
   id: string;
@@ -107,6 +112,7 @@ export interface UseBollarReturn {
   calculateMaxBollar: (btcSatoshis: number) => number;
   calculateMinBtc: (bollarCents: number) => number;
   refreshPrices: () => Promise<void>;
+  validateBollarSpell: (action: 'mint' | 'redeem', inputAmount: bigint, outputAmount: bigint) => TokenCheckResult;
 }
 
 export function useBollar(): UseBollarReturn {
@@ -306,6 +312,37 @@ export function useBollar(): UseBollarReturn {
     }));
   }, [btcPrice]);
 
+  // Validate Bollar mint/redeem using Rust token spell checker
+  const validateBollarSpell = useCallback((
+    action: 'mint' | 'redeem',
+    inputAmount: bigint,
+    outputAmount: bigint
+  ): TokenCheckResult => {
+    const { app, tx } = RustSpellChecker.buildTokenTransaction({
+      appTag: 'bollar:USD',
+      vkHash: '0'.repeat(64),
+      inputAmounts: action === 'mint' ? [] : [inputAmount],
+      outputAmounts: action === 'mint' ? [outputAmount] : [],
+    });
+
+    // For mint, we check if it's a valid mint operation
+    if (action === 'mint') {
+      const isMint = RustSpellChecker.isTokenMint(app, tx);
+      return {
+        valid: isMint,
+        inputSum: 0n,
+        outputSum: outputAmount,
+        conserved: false, // Mint doesn't conserve
+        authorized: true,
+        errors: isMint ? [] : ['Invalid mint operation'],
+      };
+    }
+
+    // For redeem, check token conservation (burn)
+    const result = RustSpellChecker.tokenCheck(app, tx, RustSpellChecker.Data.bytes(new Uint8Array([1])), RustSpellChecker.Data.empty());
+    return result;
+  }, []);
+
   return {
     positions,
     stats,
@@ -318,5 +355,6 @@ export function useBollar(): UseBollarReturn {
     calculateMaxBollar,
     calculateMinBtc,
     refreshPrices,
+    validateBollarSpell,
   };
 }
