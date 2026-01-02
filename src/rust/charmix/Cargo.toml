@@ -1,0 +1,28 @@
+[package]
+name = "charmix"
+version = "0.1.0"
+edition = "2021"
+description = "Example Charms spell checker implementation"
+license = "MIT"
+repository = "https://github.com/CharmsDev/charms"
+
+[dependencies]
+charms-sdk = { path = "../charms-sdk" }
+
+[dev-dependencies]
+# For testing
+
+[[bin]]
+name = "charmix"
+path = "main.rs"
+
+[lib]
+path = "lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+
+# SP1 zkVM target configuration
+[target.'cfg(target_os = "zkvm")'.dependencies]
+# zkVM-specific dependencies would go here
