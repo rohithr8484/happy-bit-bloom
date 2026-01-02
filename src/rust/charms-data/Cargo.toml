@@ -1,0 +1,18 @@
+[package]
+name = "charms-data"
+version = "0.10.0"
+edition = "2021"
+description = "Core data types for the Charms protocol"
+license = "MIT"
+repository = "https://github.com/CharmsDev/charms"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+[features]
+default = ["std"]
+std = []
+serde = ["dep:serde"]
+
+[lib]
+path = "lib.rs"
