@@ -7,13 +7,13 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScroll } from "@/hooks/useScroll";
 import { SCROLL_NETWORKS, formatGwei, formatEth, shortenHash } from "@/lib/scroll-sdk";
-import { 
-  Layers, 
-  Zap, 
-  Shield, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Layers,
+  Zap,
+  Shield,
+  Clock,
+  CheckCircle2,
+  XCircle,
   Copy,
   ExternalLink,
   Cpu,
@@ -82,7 +82,7 @@ export function ScrollProvingPanel() {
             {(Object.keys(SCROLL_NETWORKS) as (keyof typeof SCROLL_NETWORKS)[]).map((net) => (
               <Button
                 key={net}
-                variant={network === net ? 'default' : 'outline'}
+                variant={network === net ? "default" : "outline"}
                 size="sm"
                 onClick={() => setNetwork(net)}
               >
@@ -90,7 +90,7 @@ export function ScrollProvingPanel() {
               </Button>
             ))}
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-muted/30 border border-border/50">
             <div>
               <p className="text-xs text-muted-foreground mb-1">Chain ID</p>
@@ -106,9 +106,9 @@ export function ScrollProvingPanel() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Explorer</p>
-              <a 
-                href={networkConfig.blockExplorer} 
-                target="_blank" 
+              <a
+                href={networkConfig.blockExplorer}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-primary hover:underline flex items-center gap-1"
               >
@@ -122,11 +122,11 @@ export function ScrollProvingPanel() {
       {/* Queue Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: 'Pending', value: queueStats.pending, icon: Clock, color: 'text-yellow-500' },
-          { label: 'Proving', value: queueStats.proving, icon: Cpu, color: 'text-blue-500' },
-          { label: 'Completed', value: queueStats.completed, icon: CheckCircle2, color: 'text-green-500' },
-          { label: 'Failed', value: queueStats.failed, icon: XCircle, color: 'text-red-500' },
-          { label: 'Total Proofs', value: queueStats.totalProofs, icon: Database, color: 'text-primary' },
+          { label: "Pending", value: queueStats.pending, icon: Clock, color: "text-yellow-500" },
+          { label: "Proving", value: queueStats.proving, icon: Cpu, color: "text-blue-500" },
+          { label: "Completed", value: queueStats.completed, icon: CheckCircle2, color: "text-green-500" },
+          { label: "Failed", value: queueStats.failed, icon: XCircle, color: "text-red-500" },
+          { label: "Total Proofs", value: queueStats.totalProofs, icon: Database, color: "text-primary" },
         ].map((stat) => (
           <Card key={stat.label} className="border-border/50 bg-card/50">
             <CardContent className="p-4">
@@ -158,7 +158,10 @@ export function ScrollProvingPanel() {
             <CardHeader>
               <CardTitle className="text-lg">Generate Chunk Proof</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Prove validity of a sequence of blocks using Scroll zkEVM
+                Prove validity of a sequence of blocks using Scroll zkEVM - Blocks are fetched automatically from Scroll
+                zkEVM. The proof mathematically verifies that all transactions in the selected blocks are valid, ordered
+                correctly, and consistent with the network’s state. Selecting more blocks increases proof size and
+                efficiency but takes longer to generate.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -168,11 +171,11 @@ export function ScrollProvingPanel() {
                   {[1, 3, 5, 10].map((n) => (
                     <Button
                       key={n}
-                      variant={blockCount === n ? 'default' : 'outline'}
+                      variant={blockCount === n ? "default" : "outline"}
                       size="sm"
                       onClick={() => setBlockCount(n)}
                     >
-                      {n} {n === 1 ? 'Block' : 'Blocks'}
+                      {n} {n === 1 ? "Block" : "Blocks"}
                     </Button>
                   ))}
                 </div>
@@ -191,12 +194,7 @@ export function ScrollProvingPanel() {
                 </div>
               </div>
 
-              <Button 
-                onClick={handleGenerateChunkProof} 
-                disabled={loading}
-                className="w-full"
-                variant="glow"
-              >
+              <Button onClick={handleGenerateChunkProof} disabled={loading} className="w-full" variant="glow">
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -228,7 +226,7 @@ export function ScrollProvingPanel() {
                   {[2, 4, 8, 16].map((n) => (
                     <Button
                       key={n}
-                      variant={chunkCount === n ? 'default' : 'outline'}
+                      variant={chunkCount === n ? "default" : "outline"}
                       size="sm"
                       onClick={() => setChunkCount(n)}
                     >
@@ -251,12 +249,7 @@ export function ScrollProvingPanel() {
                 </div>
               </div>
 
-              <Button 
-                onClick={handleGenerateBatchProof} 
-                disabled={loading}
-                className="w-full"
-                variant="glow"
-              >
+              <Button onClick={handleGenerateBatchProof} disabled={loading} className="w-full" variant="glow">
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -277,11 +270,7 @@ export function ScrollProvingPanel() {
       {/* Active Proof Progress */}
       <AnimatePresence>
         {activeProof && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -292,9 +281,7 @@ export function ScrollProvingPanel() {
                   <Badge variant="secondary">{Math.round(activeProof.progress)}%</Badge>
                 </div>
                 <Progress value={activeProof.progress} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-2">
-                  This simulates the Scroll proving SDK workflow
-                </p>
+                <p className="text-xs text-muted-foreground mt-2">This simulates the Scroll proving SDK workflow</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -318,19 +305,17 @@ export function ScrollProvingPanel() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {proofState.status === 'completed' ? (
+                    {proofState.status === "completed" ? (
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-500" />
                     )}
                     <span className="font-medium capitalize">{proofState.type} Proof</span>
-                    <Badge variant={proofState.status === 'completed' ? 'default' : 'destructive'}>
+                    <Badge variant={proofState.status === "completed" ? "default" : "destructive"}>
                       {proofState.status}
                     </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {proofState.startedAt.toLocaleTimeString()}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{proofState.startedAt.toLocaleTimeString()}</span>
                 </div>
 
                 {proofState.proof && (
@@ -347,30 +332,26 @@ export function ScrollProvingPanel() {
                     <div>
                       <p className="text-xs text-muted-foreground">Block Range</p>
                       <code className="text-xs">
-                        {proofState.proof.blockRange.start} <ArrowRight className="w-3 h-3 inline" /> {proofState.proof.blockRange.end}
+                        {proofState.proof.blockRange.start} <ArrowRight className="w-3 h-3 inline" />{" "}
+                        {proofState.proof.blockRange.end}
                       </code>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Gas Estimate</p>
-                      <code className="text-xs text-green-500">
-                        {proofState.proof.gasEstimate.toLocaleString()}
-                      </code>
+                      <code className="text-xs text-green-500">{proofState.proof.gasEstimate.toLocaleString()}</code>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Duration</p>
                       <code className="text-xs">
-                        {proofState.completedAt 
+                        {proofState.completedAt
                           ? `${((proofState.completedAt.getTime() - proofState.startedAt.getTime()) / 1000).toFixed(1)}s`
-                          : '-'
-                        }
+                          : "-"}
                       </code>
                     </div>
                   </div>
                 )}
 
-                {proofState.error && (
-                  <p className="text-sm text-red-500 mt-2">{proofState.error}</p>
-                )}
+                {proofState.error && <p className="text-sm text-red-500 mt-2">{proofState.error}</p>}
               </motion.div>
             ))}
           </CardContent>
@@ -387,25 +368,17 @@ export function ScrollProvingPanel() {
             <div>
               <h4 className="font-medium text-foreground mb-1">About Scroll zkEVM Proving</h4>
               <p className="text-sm text-muted-foreground mb-3">
-                Scroll uses zkEVM to generate validity proofs for L2 transactions. The proving SDK 
-                enables chunk and batch proof generation for rollup operation.
+                Scroll uses zkEVM to generate validity proofs for L2 transactions. The proving SDK enables chunk and
+                batch proof generation for rollup operation.
               </p>
               <div className="flex gap-2">
-                <a 
-                  href="https://docs.scroll.io/en/sdk/technical-stack" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
+                <a href="https://docs.scroll.io/en/sdk/technical-stack" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm">
                     <ExternalLink className="w-3 h-3 mr-1" />
                     SDK Docs
                   </Button>
                 </a>
-                <a 
-                  href="https://github.com/scroll-tech/scroll-proving-sdk" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
+                <a href="https://github.com/scroll-tech/scroll-proving-sdk" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm">
                     <ExternalLink className="w-3 h-3 mr-1" />
                     GitHub
