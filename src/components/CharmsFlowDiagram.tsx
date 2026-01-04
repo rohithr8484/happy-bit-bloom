@@ -193,9 +193,7 @@ export function CharmsFlowDiagram() {
                 <div>
                   <h3 className="font-semibold text-foreground text-lg">Charms Spell Checker</h3>
                   <p className="text-sm text-muted-foreground">
-                    Spells are programmable instructions that define what should happen on-chain, such as minting
-                    tokens, locking funds, or transferring assets. Validate spells using{" "}
-                    <code className="text-primary">is_correct()</code> verification
+                    Validate spells using <code className="text-primary">is_correct()</code> verification
                   </p>
                 </div>
               </div>
@@ -434,7 +432,9 @@ function CharmCryptoPanel() {
             <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Crypto</Badge>
           </h3>
           <p className="text-sm text-muted-foreground">
-            Cryptographic spell verification using authenticated encryption
+            Spells are programmable instructions that define what should happen on-chain, such as minting tokens,
+            locking funds, or transferring assets. This is Cryptographic spell verification using authenticated
+            encryption
           </p>
         </div>
       </div>
