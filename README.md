@@ -28,17 +28,17 @@ It enables developers to model application logic as deterministic circuits, prov
 
 ## 🧠 Use Cases
 
-Trustless escrows
+- Trustless escrows
 
-Milestone-based payments
+- Milestone-based payments
 
-DAO treasury controls
+- DAO treasury controls
 
-On-chain governance execution
+- On-chain governance execution
 
-Stateful Bitcoin-native applications
+- Stateful Bitcoin-native applications
 
-BOS-native DeFi primitives  
+- BOS-native DeFi primitives  
 
 ---
 ## 🧱 Technical Architecture
