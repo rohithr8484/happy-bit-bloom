@@ -12,18 +12,53 @@ It enables developers to model application logic as deterministic circuits, prov
 
 ## ✨ Key Features
 
-- 🔐 **UTXO-Based Escrows**  
-  Trust-minimized fund locking with Bitcoin-native security. UTXOs act as immutable application state, escrow and settlement anchors, and concurrency controls.  
-  Each circuit transition consumes and produces UTXOs, ensuring explicit and auditable state evolution.
+## 🔐 Escrows
+- Lock Bitcoin securely until work is completed or conditions are met  
+- Release funds by **milestones, deadlines, or mutual approval**  
+- No middlemen — funds move only when agreed rules are satisfied  
 
-- 🧾 **Proof-First Execution**  
-  State transitions require cryptographic proof before settlement.
+---
 
-- ♻️ **Deterministic State Model**  
-  Explicit state evolution with replay protection and concurrency safety.
+## 🏆 Bounties
+- Post Bitcoin rewards for tasks, fixes, or contributions  
+- Pay only when work is completed and approved  
+- Ideal for open-source projects, freelancers, and communities  
 
-- 🧩 **Composable by Design**  
-  Built for BOS-native and modular execution layers.
+---
+
+## 💵 Bollar
+- Turn Bitcoin into a **stable, spendable balance** without selling it  
+- Use BTC as collateral and repay later to unlock it  
+- Designed for predictable payments and settlements  
+
+---
+
+## 🧠 ZK Proofs
+- Prove work is done **without revealing sensitive details**  
+- Keep data private while still unlocking payments  
+- Useful for audits, verification, and trust-minimized payouts  
+
+---
+
+## 🚀 Scroll batch proof generation 
+- Handle multiple actions smoothly and efficiently  
+- Faster confirmations with lower costs behind the scenes  
+- Makes complex workflows feel simple to users  
+
+---
+
+## ✨ Charms spell validation
+- Add simple “rules” to Bitcoin transactions  
+- Power escrows, bounties, and assets with built-in logic  
+- Everything remains transparent and verifiable  
+
+---
+
+## 📊 Analytics
+- Track all escrows, bounties, and payments in one place  
+- See funds **locked, released, pending, or disputed**  
+- Clear history of what happened, when, and why
+  
 ---
 
 ## 🧠 Use Cases
