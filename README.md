@@ -58,6 +58,15 @@ BOS CircuitForge interoperates with the following core technologies:
 
 ### 🔹 Charms
 Circuits execute as verifiable programs, producing proofs that can be settled on Bitcoin.
+Charms is a library, CLI, and web API that enables programmable tokens, NFTs, and app state directly on Bitcoin by attaching logic to UTXOs.
+Using spells embedded in Bitcoin transactions, Charms let NFTs carry state and enforce rules—such as minting tokens only when the NFT state is correctly updated in the same transaction.
+
+Charms.js (JavaScript) - To provide browser- and app-friendly cryptographic utilities to encrypt, hash, and verify data used in Charms spells and proofs.
+
+Charms ( typescript) - To implement cryptographic primitives (encrypt, decrypt, authenticate, hash) used to secure spell data, verify integrity, and safely pass inputs between users, apps, and verifiers.
+
+Charms (rust) - Used for deterministic spell execution and verification, defining how Charms are created, transformed, and validated directly on Bitcoin using UTXO-based logic.
+
 
 ### 🔹 Scroll
 Optional high-throughput execution or coordination layer prior to Bitcoin finality.
