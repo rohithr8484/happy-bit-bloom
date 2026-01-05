@@ -81,7 +81,7 @@ A full-stack Web3 infrastructure platform purpose-built for Bitcoin, Cardano and
 Bitcoin developer platform that provides tools, SDKs, and primitives to build UTXO-native applications like escrows, bounties, and programmable assets.
 
 ### 🔹 Maestro 
-
+Manages proof lifecycle, costs, and verification while fetching real Bitcoin data via Maestro and emulating zkVM (RISC Zero–like) execution and imports enable fetching real-time Bitcoin data such as prices, UTXOs, transactions, runes, NFTs, DeFi protocols, and wallet activity.
 
 ---
 
@@ -91,7 +91,7 @@ Bitcoin developer platform that provides tools, SDKs, and primitives to build UT
 - Build Tool: Vite  
 - UI: shadcn/ui  
 - Styling: Tailwind CSS  
-- Execution Layer: Charms (optional Scroll coordination)  
+- Execution Layer: Charms, Scroll
 - Settlement Layer: Bitcoin / Bitcoin OS  
 - State Model: UTXO-anchored circuits  
 
@@ -141,8 +141,6 @@ npm run lint
 
 ## 📜 License
 
-MIT License
-
-Copyright (c) 2025 BOS CircuitForge
+Copyright (c) 2026 BOS CircuitForge
 
 
