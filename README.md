@@ -84,6 +84,7 @@ It enables developers to model application logic as deterministic circuits, prov
 <img width="473" height="354" alt="Screenshot from 2026-01-05 10-39-17" src="https://github.com/user-attachments/assets/dd8bd898-a7c8-4f83-9212-f6d0f91e8d2c" />
 <img width="509" height="312" alt="Screenshot from 2026-01-05 10-39-45" src="https://github.com/user-attachments/assets/4c84684d-5281-416d-a593-c4ca57d288ba" />
 <img width="509" height="312" alt="Screenshot from 2026-01-05 10-40-00" src="https://github.com/user-attachments/assets/0031bf21-777d-433d-a94f-9cf70414f3f5" />
+<img width="900" height="600" alt="Figure_7_Bitcoin_Analytics_Simplified" src="https://github.com/user-attachments/assets/0fa3d705-8eb0-471e-84a9-ff1d0a9b849c" />
 
 ---
 
