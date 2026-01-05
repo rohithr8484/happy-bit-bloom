@@ -142,15 +142,23 @@ npm run lint
 ## 🧪 Run rust in Development Mode
 
 ```bash
+
 cd src/rust
-cargo build
+
+# charmix 
 cargo run -p charmix
-cargo run -p charmix -- --help
-cargo run -p charmix -- spell build
-cargo run -p charmix -- spell apply
-cargo test
-cargo build --release
+cargo build -p charmix
+cargo build -p charmix --release
 ./target/release/charmix
+
+# charms-data 
+cargo build -p charms-data
+cargo test -p charms-data
+
+# charms-sdk 
+cargo build -p charms-sdk
+cargo test -p charms-sdk
+
 ```
 ---
 
