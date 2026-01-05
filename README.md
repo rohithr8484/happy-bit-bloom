@@ -202,6 +202,11 @@ cargo test -p charms-sdk
 ```
 ---
 
+## 📦 Credits
+This work benefited from discussions by mentors from BOS, Encode Club and Charms.
+
+---
+
 ## 📜 License
 
 Copyright (c) 2026 BOS CircuitForge
