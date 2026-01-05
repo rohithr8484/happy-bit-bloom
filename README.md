@@ -122,7 +122,9 @@ git clone https://github.com/rohithr8484/happy-bit-bloom.git
 
 npm install
 
-npm run dev
+🧩 Install dependencies
+
+ npm run dev
 
 🏗️ Build for Production
 
