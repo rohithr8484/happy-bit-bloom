@@ -41,6 +41,16 @@ Stateful Bitcoin-native applications
 BOS-native DeFi primitives  
 
 ---
+## 🧱 Technical Architecture
+
+<img width="428" height="289" alt="Screenshot from 2026-01-05 10-38-02" src="https://github.com/user-attachments/assets/83838539-ffec-4e9e-a381-ea1a64500575" />
+<img width="428" height="289" alt="Screenshot from 2026-01-05 10-38-46" src="https://github.com/user-attachments/assets/0776cb1e-8304-468d-a282-f1f8da9bd8bc" />
+<img width="473" height="354" alt="Screenshot from 2026-01-05 10-39-03" src="https://github.com/user-attachments/assets/1f3f7067-25c2-4afc-9b7a-9032a24c9f3c" />
+<img width="473" height="354" alt="Screenshot from 2026-01-05 10-39-17" src="https://github.com/user-attachments/assets/dd8bd898-a7c8-4f83-9212-f6d0f91e8d2c" />
+<img width="509" height="312" alt="Screenshot from 2026-01-05 10-39-45" src="https://github.com/user-attachments/assets/4c84684d-5281-416d-a593-c4ca57d288ba" />
+<img width="509" height="312" alt="Screenshot from 2026-01-05 10-40-00" src="https://github.com/user-attachments/assets/0031bf21-777d-433d-a94f-9cf70414f3f5" />
+
+---
 
 ## 🤝 Partner Technology Stack
 
