@@ -71,9 +71,17 @@ Charms (rust) - Used for deterministic spell execution and verification, definin
 ### 🔹 Scroll
 Optional high-throughput execution or coordination layer prior to Bitcoin finality.
 
+Manages generating and tracking chunk and batch zk-proofs for Scroll by simulating block/chunk witnesses, updating progress, and storing proof history.
+It also supports network selection, queue stats, and proof verification, exposing a clean API for UI-driven proof generation and status handling.
+
 ### 🔹 UTXOS.dev 
 
 A full-stack Web3 infrastructure platform purpose-built for Bitcoin, Cardano and Spark.
+
+Bitcoin developer platform that provides tools, SDKs, and primitives to build UTXO-native applications like escrows, bounties, and programmable assets.
+
+### 🔹 Maestro 
+
 
 ---
 
