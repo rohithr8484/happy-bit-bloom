@@ -114,7 +114,7 @@ It also supports network selection, queue stats, and proof verification, exposin
 
 A full-stack Web3 infrastructure platform with transaction sponsorship purpose-built for Bitcoin, Cardano and Spark. Bitcoin developer platform that provides tools, SDKs, and primitives to build UTXO-native applications like escrows, bounties, and programmable assets.
 
-We can also use Bitcoin testnet faucets : https://coinfaucet.eu/en/btc-testnet4/
+Altenative to Bitcoin testnet faucets : https://coinfaucet.eu/en/btc-testnet4/
 
 ### 🔹 Maestro 
 Manages proof lifecycle, costs, and verification while fetching real Bitcoin data via Maestro and emulating zkVM (RISC Zero–like) execution and imports enable fetching real-time Bitcoin data such as prices, UTXOs, transactions, runes, NFTs, DeFi protocols, and wallet activity.
