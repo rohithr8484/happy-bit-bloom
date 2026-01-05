@@ -114,7 +114,7 @@ Exact versions are defined in `package.json`.
 ---
 
 
-## 🧪 Run in Development Mode
+## 🧪 Run app in Development Mode
 
 ```bash
 
@@ -137,7 +137,22 @@ npm run preview
 npm run lint
 
 ```
+---
 
+## 🧪 Run rust in Development Mode
+
+```bash
+cd src/rust
+cargo build
+cargo run -p charmix
+cargo run -p charmix -- --help
+cargo run -p charmix -- spell build
+cargo run -p charmix -- spell apply
+cargo test
+cargo build --release
+./target/release/charmix
+```
+---
 
 ## 📜 License
 
