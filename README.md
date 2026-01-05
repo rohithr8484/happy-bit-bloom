@@ -132,7 +132,7 @@ Manages proof lifecycle, costs, and verification while fetching real Bitcoin dat
 
 ---
 
-## 📦 Dependencies
+## 📦 UI Dependencies
 
 Core dependencies include:
 
@@ -143,8 +143,6 @@ Core dependencies include:
 - shadcn/ui  
 - tailwindcss  
 - eslint  
-
-Exact versions are defined in `package.json`.
 
 ---
 
