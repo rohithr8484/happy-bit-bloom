@@ -118,6 +118,10 @@ Exact versions are defined in `package.json`.
 
 ```bash
 
+git clone https://github.com/rohithr8484/happy-bit-bloom.git
+
+npm install
+
 npm run dev
 
 🏗️ Build for Production
