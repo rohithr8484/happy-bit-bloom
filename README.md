@@ -72,7 +72,7 @@ Charms (rust) - Used for deterministic spell execution and verification, definin
 Optional high-throughput execution or coordination layer prior to Bitcoin finality.
 
 Manages generating and tracking chunk and batch zk-proofs for Scroll by simulating block/chunk witnesses, updating progress, and storing proof history.
-It also supports network selection, queue stats, and proof verification, exposing a clean API for UI-driven proof generation and status handling.
+It also supports network selection, queue stats, and proof verification, exposing a clean API for UI-driven proof generation and status handling. The Scroll prover takes automatically fetched zkEVM block or chunk data and computes a zero-knowledge proof that all transactions were executed correctly and in order.
 
 ### 🔹 UTXOS.dev 
 
