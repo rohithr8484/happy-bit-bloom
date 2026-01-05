@@ -203,7 +203,7 @@ cargo test -p charms-sdk
 ---
 
 ## 📦 Credits
-This work benefitted from help by mentors from BOS and Charms.
+This work benefitted from insights of mentors from BOS and Charms.
 
 ---
 
