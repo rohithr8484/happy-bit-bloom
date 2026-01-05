@@ -203,7 +203,7 @@ cargo test -p charms-sdk
 ---
 
 ## 📦 Credits
-This work benefited from discussions by mentors from BOS, Encode Club and Charms.
+This work benefitted from help by mentors from BOS and Charms.
 
 ---
 
