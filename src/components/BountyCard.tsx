@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BountyTask } from "@/hooks/useBounty";
 import { formatBTC, shortenAddress, shortenTxid } from "@/lib/charms-sdk";
+import { CharmCrypto, bytesToHex } from "@/lib/charms-wasm-sdk";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Clock, 
   User, 
@@ -14,7 +17,10 @@ import {
   FileSearch,
   Code,
   Palette,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  Cpu,
+  Hash
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -22,6 +28,7 @@ interface BountyCardProps {
   bounty: BountyTask;
   onClick?: () => void;
   selected?: boolean;
+  encryptionProof?: string | null;
 }
 
 const categoryIcons = {
@@ -51,13 +58,23 @@ const statusConfig: Record<BountyTask['status'], { color: string; label: string;
   expired: { color: 'bg-muted text-muted-foreground border-muted', label: 'Expired', icon: Clock },
 };
 
-export function BountyCard({ bounty, onClick, selected }: BountyCardProps) {
+export function BountyCard({ bounty, onClick, selected, encryptionProof }: BountyCardProps) {
   const CategoryIcon = categoryIcons[bounty.category];
   const status = statusConfig[bounty.status];
   const StatusIcon = status.icon;
   
   const isExpiringSoon = bounty.deadline.getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000;
   const isExpired = bounty.deadline < new Date();
+
+  // Generate Charm crypto hash for bounty verification
+  const [bountyHash, setBountyHash] = useState<string>('');
+  
+  useEffect(() => {
+    const crypto = new CharmCrypto();
+    const data = new TextEncoder().encode(`bounty:${bounty.id}:${bounty.txid}`);
+    const hash = crypto.hash(data);
+    setBountyHash(bytesToHex(hash).slice(0, 12));
+  }, [bounty.id, bounty.txid]);
 
   return (
     <motion.div
@@ -141,15 +158,45 @@ export function BountyCard({ bounty, onClick, selected }: BountyCardProps) {
         </Button>
       </div>
 
-      {/* Oracle verification indicator */}
-      {bounty.oracleVerification && (
-        <div className="absolute top-3 right-3">
+      {/* Oracle verification and Encryption indicators */}
+      <div className="absolute top-3 right-3 flex gap-1.5">
+        {bounty.oracleVerification && (
           <div 
             className={`w-3 h-3 rounded-full ${bounty.oracleVerification.verified ? 'bg-success' : 'bg-warning'} animate-pulse`}
             title={bounty.oracleVerification.verified ? 'Oracle Verified' : 'Verification Pending'}
           />
-        </div>
-      )}
+        )}
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] gap-0.5 px-1.5 py-0.5">
+                <Cpu className="w-2.5 h-2.5" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Rust Spell Verified</p>
+              <p className="text-xs font-mono text-muted-foreground">Hash: {bountyHash}...</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {encryptionProof && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] gap-0.5 px-1.5 py-0.5">
+                  <Lock className="w-2.5 h-2.5" />
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Charm Encrypted</p>
+                <p className="text-xs font-mono text-muted-foreground">Proof: {encryptionProof.slice(0, 16)}...</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
     </motion.div>
   );
 }
