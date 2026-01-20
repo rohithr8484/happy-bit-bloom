@@ -10,6 +10,15 @@ import {
   EscrowState,
   type EscrowCheckResult 
 } from '@/lib/rust-spell-checker';
+import {
+  CharmCrypto,
+  createEncryptedEscrow,
+  decryptEscrow,
+  type EncryptedEscrowData,
+} from '@/lib/charms-wasm-sdk';
+
+// Encryption key storage (in production, use secure key management)
+const escrowEncryptionKeys = new Map<string, Uint8Array>();
 
 // Demo escrows for showcasing the UI
 const DEMO_ESCROWS: EscrowContract[] = [
@@ -101,6 +110,8 @@ export interface UseEscrowReturn {
   disputeMilestone: (escrowId: string, milestoneId: string, reason: string) => Promise<void>;
   refreshEscrow: (escrowId: string) => Promise<void>;
   validateEscrowSpell: (escrowId: string, action: 'fund' | 'release' | 'dispute') => EscrowCheckResult;
+  encryptEscrowData: (escrowId: string) => EncryptedEscrowData | null;
+  getEncryptionStatus: (escrowId: string) => { encrypted: boolean; keyExists: boolean };
 }
 
 export interface CreateEscrowParams {
@@ -359,6 +370,40 @@ export function useEscrow(): UseEscrowReturn {
     return result;
   }, [escrows]);
 
+  // Encrypt escrow data using @jedisct1/charm
+  const encryptEscrowData = useCallback((escrowId: string): EncryptedEscrowData | null => {
+    const escrow = escrows.find(e => e.id === escrowId);
+    if (!escrow) return null;
+
+    const terms = `Escrow between ${escrow.payer} and ${escrow.payee}. Total: ${escrow.totalAmount} sats`;
+    const milestoneDescriptions = escrow.milestones.map(m => `${m.title}: ${m.description} (${m.amount} sats)`);
+    
+    const { escrow: encrypted, key } = createEncryptedEscrow(
+      escrowId,
+      terms,
+      milestoneDescriptions
+    );
+    
+    // Store key for later decryption
+    escrowEncryptionKeys.set(escrowId, key);
+    
+    console.log('[Charm Crypto] Escrow encrypted:', {
+      escrowId,
+      termsHash: encrypted.encryptedTerms.spellHash.slice(0, 16) + '...',
+      milestonesEncrypted: encrypted.encryptedMilestones.length,
+    });
+    
+    return encrypted;
+  }, [escrows]);
+
+  // Get encryption status
+  const getEncryptionStatus = useCallback((escrowId: string): { encrypted: boolean; keyExists: boolean } => {
+    return {
+      encrypted: escrowEncryptionKeys.has(escrowId),
+      keyExists: escrowEncryptionKeys.has(escrowId),
+    };
+  }, []);
+
   return {
     escrows,
     selectedEscrow,
@@ -371,5 +416,7 @@ export function useEscrow(): UseEscrowReturn {
     disputeMilestone,
     refreshEscrow,
     validateEscrowSpell,
+    encryptEscrowData,
+    getEncryptionStatus,
   };
 }

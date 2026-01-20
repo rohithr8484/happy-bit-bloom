@@ -2,11 +2,18 @@
  * Charms TypeScript/WASM SDK
  * 
  * Based on: https://github.com/CharmsDev/charms-js/tree/main/src
+ * Integrated with @jedisct1/charm for cryptographic operations
  * 
  * This module provides TypeScript bindings for the Charms WASM library,
  * enabling spell creation, verification, and Bitcoin transaction building
- * directly in the browser.
+ * directly in the browser with real encryption.
  */
+
+import { Charm } from '@jedisct1/charm';
+
+// ============= Charm Crypto Constants =============
+export const CHARM_KEY_LENGTH = 32;
+export const CHARM_NONCE_LENGTH = 16;
 
 // ============= Types (from shared/types.ts) =============
 
@@ -457,6 +464,356 @@ async function hashSpell(spell: Spell): Promise<string> {
   return bytesToHex(new Uint8Array(hashBuffer));
 }
 
+// ============= @jedisct1/charm Crypto Integration =============
+
+/**
+ * CharmCrypto - Real cryptographic operations using @jedisct1/charm
+ * Provides encrypt/decrypt/hash for spell data protection
+ */
+export class CharmCrypto {
+  private key: Uint8Array;
+  private nonce: Uint8Array;
+
+  constructor(key?: Uint8Array, nonce?: Uint8Array) {
+    this.key = key || CharmCrypto.generateKey();
+    this.nonce = nonce || CharmCrypto.generateNonce();
+  }
+
+  static generateKey(): Uint8Array {
+    const key = new Uint8Array(CHARM_KEY_LENGTH);
+    crypto.getRandomValues(key);
+    return key;
+  }
+
+  static generateNonce(): Uint8Array {
+    const nonce = new Uint8Array(CHARM_NONCE_LENGTH);
+    crypto.getRandomValues(nonce);
+    return nonce;
+  }
+
+  /**
+   * Encrypt data using @jedisct1/charm
+   */
+  encrypt(data: Uint8Array): { ciphertext: Uint8Array; tag: Uint8Array } {
+    const message = new Uint8Array(data);
+    const charm = new Charm(this.key, this.nonce);
+    const tag = charm.encrypt(message);
+    return { ciphertext: message, tag };
+  }
+
+  /**
+   * Decrypt data using @jedisct1/charm
+   * Note: charm.decrypt modifies in place and returns void, so we handle errors with try/catch
+   */
+  decrypt(ciphertext: Uint8Array, tag: Uint8Array): Uint8Array | null {
+    try {
+      const message = new Uint8Array(ciphertext);
+      const charm = new Charm(this.key, this.nonce);
+      charm.decrypt(message, tag);
+      return message;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Hash data using Charm
+   */
+  hash(data: Uint8Array): Uint8Array {
+    const charm = new Charm(this.key, this.nonce);
+    return charm.hash(data);
+  }
+
+  getKeyPair(): { key: Uint8Array; nonce: Uint8Array } {
+    return { key: this.key, nonce: this.nonce };
+  }
+}
+
+// ============= Encrypted Spell Types =============
+
+export interface EncryptedSpellData {
+  ciphertext: Uint8Array;
+  tag: Uint8Array;
+  nonce: Uint8Array;
+  spellHash: string;
+}
+
+export interface SpellEncryptionResult {
+  encrypted: EncryptedSpellData;
+  key: Uint8Array;
+}
+
+// ============= Spell Encryption Functions =============
+
+/**
+ * Encrypt a spell for secure transmission
+ */
+export function encryptSpell(spell: Spell, key?: Uint8Array): SpellEncryptionResult {
+  const cryptoInstance = new CharmCrypto(key);
+  const spellJson = JSON.stringify(spell);
+  const data = new TextEncoder().encode(spellJson);
+  
+  const { ciphertext, tag } = cryptoInstance.encrypt(data);
+  const spellHash = bytesToHex(cryptoInstance.hash(data));
+  const { nonce, key: usedKey } = cryptoInstance.getKeyPair();
+  
+  return {
+    encrypted: { ciphertext, tag, nonce, spellHash },
+    key: usedKey,
+  };
+}
+
+/**
+ * Decrypt a spell
+ */
+export function decryptSpell(
+  encrypted: EncryptedSpellData,
+  key: Uint8Array
+): Spell | null {
+  const cryptoInstance = new CharmCrypto(key, encrypted.nonce);
+  const decrypted = cryptoInstance.decrypt(encrypted.ciphertext, encrypted.tag);
+  
+  if (!decrypted) return null;
+  
+  try {
+    return JSON.parse(new TextDecoder().decode(decrypted)) as Spell;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verify spell hash integrity
+ */
+export function verifySpellHash(
+  spell: Spell,
+  expectedHash: string,
+  key: Uint8Array,
+  nonce: Uint8Array
+): boolean {
+  const cryptoInstance = new CharmCrypto(key, nonce);
+  const spellJson = JSON.stringify(spell);
+  const data = new TextEncoder().encode(spellJson);
+  const actualHash = bytesToHex(cryptoInstance.hash(data));
+  return actualHash === expectedHash;
+}
+
+// ============= Escrow Encryption =============
+
+export interface EncryptedEscrowData {
+  escrowId: string;
+  encryptedTerms: EncryptedSpellData;
+  encryptedMilestones: EncryptedSpellData[];
+  createdAt: number;
+}
+
+/**
+ * Create encrypted escrow data
+ */
+export function createEncryptedEscrow(
+  escrowId: string,
+  terms: string,
+  milestones: string[],
+  key?: Uint8Array
+): { escrow: EncryptedEscrowData; key: Uint8Array } {
+  const cryptoKey = key || CharmCrypto.generateKey();
+  
+  const encryptTerms = (text: string): EncryptedSpellData => {
+    const crypto = new CharmCrypto(cryptoKey);
+    const data = new TextEncoder().encode(text);
+    const { ciphertext, tag } = crypto.encrypt(data);
+    const spellHash = bytesToHex(crypto.hash(data));
+    return { ciphertext, tag, nonce: crypto.getKeyPair().nonce, spellHash };
+  };
+  
+  return {
+    escrow: {
+      escrowId,
+      encryptedTerms: encryptTerms(terms),
+      encryptedMilestones: milestones.map(m => encryptTerms(m)),
+      createdAt: Date.now(),
+    },
+    key: cryptoKey,
+  };
+}
+
+/**
+ * Decrypt escrow data
+ */
+export function decryptEscrow(
+  escrow: EncryptedEscrowData,
+  key: Uint8Array
+): { terms: string | null; milestones: (string | null)[] } {
+  const decryptData = (encrypted: EncryptedSpellData): string | null => {
+    const crypto = new CharmCrypto(key, encrypted.nonce);
+    const decrypted = crypto.decrypt(encrypted.ciphertext, encrypted.tag);
+    return decrypted ? new TextDecoder().decode(decrypted) : null;
+  };
+  
+  return {
+    terms: decryptData(escrow.encryptedTerms),
+    milestones: escrow.encryptedMilestones.map(m => decryptData(m)),
+  };
+}
+
+// ============= Bounty Encryption =============
+
+export interface EncryptedBountyData {
+  bountyId: string;
+  encryptedDescription: EncryptedSpellData;
+  encryptedReward: EncryptedSpellData;
+  proofHash: string;
+}
+
+/**
+ * Create encrypted bounty
+ */
+export function createEncryptedBounty(
+  bountyId: string,
+  description: string,
+  reward: string,
+  key?: Uint8Array
+): { bounty: EncryptedBountyData; key: Uint8Array } {
+  const cryptoKey = key || CharmCrypto.generateKey();
+  
+  const encryptData = (text: string): EncryptedSpellData => {
+    const crypto = new CharmCrypto(cryptoKey);
+    const data = new TextEncoder().encode(text);
+    const { ciphertext, tag } = crypto.encrypt(data);
+    const spellHash = bytesToHex(crypto.hash(data));
+    return { ciphertext, tag, nonce: crypto.getKeyPair().nonce, spellHash };
+  };
+  
+  const proofCrypto = new CharmCrypto(cryptoKey);
+  const proofData = new TextEncoder().encode(`${bountyId}:${description}:${reward}`);
+  const proofHash = bytesToHex(proofCrypto.hash(proofData));
+  
+  return {
+    bounty: {
+      bountyId,
+      encryptedDescription: encryptData(description),
+      encryptedReward: encryptData(reward),
+      proofHash,
+    },
+    key: cryptoKey,
+  };
+}
+
+/**
+ * Decrypt bounty data
+ */
+export function decryptBounty(
+  bounty: EncryptedBountyData,
+  key: Uint8Array
+): { description: string | null; reward: string | null } {
+  const decryptData = (encrypted: EncryptedSpellData): string | null => {
+    const crypto = new CharmCrypto(key, encrypted.nonce);
+    const decrypted = crypto.decrypt(encrypted.ciphertext, encrypted.tag);
+    return decrypted ? new TextDecoder().decode(decrypted) : null;
+  };
+  
+  return {
+    description: decryptData(bounty.encryptedDescription),
+    reward: decryptData(bounty.encryptedReward),
+  };
+}
+
+// ============= Bollar Token Encryption =============
+
+export interface EncryptedBollarMint {
+  mintId: string;
+  encryptedAmount: EncryptedSpellData;
+  encryptedRecipient: EncryptedSpellData;
+  proofHash: string;
+}
+
+/**
+ * Create encrypted Bollar mint
+ */
+export function createEncryptedBollarMint(
+  mintId: string,
+  amount: bigint,
+  recipient: string,
+  key?: Uint8Array
+): { mint: EncryptedBollarMint; key: Uint8Array } {
+  const cryptoKey = key || CharmCrypto.generateKey();
+  
+  const encryptData = (text: string): EncryptedSpellData => {
+    const crypto = new CharmCrypto(cryptoKey);
+    const data = new TextEncoder().encode(text);
+    const { ciphertext, tag } = crypto.encrypt(data);
+    const spellHash = bytesToHex(crypto.hash(data));
+    return { ciphertext, tag, nonce: crypto.getKeyPair().nonce, spellHash };
+  };
+  
+  const proofCrypto = new CharmCrypto(cryptoKey);
+  const proofData = new TextEncoder().encode(`${mintId}:${amount.toString()}:${recipient}`);
+  const proofHash = bytesToHex(proofCrypto.hash(proofData));
+  
+  return {
+    mint: {
+      mintId,
+      encryptedAmount: encryptData(amount.toString()),
+      encryptedRecipient: encryptData(recipient),
+      proofHash,
+    },
+    key: cryptoKey,
+  };
+}
+
+/**
+ * Verify and decrypt Bollar mint
+ */
+export function decryptBollarMint(
+  mint: EncryptedBollarMint,
+  key: Uint8Array
+): { valid: boolean; amount: bigint | null; recipient: string | null } {
+  const decryptData = (encrypted: EncryptedSpellData): string | null => {
+    const crypto = new CharmCrypto(key, encrypted.nonce);
+    const decrypted = crypto.decrypt(encrypted.ciphertext, encrypted.tag);
+    return decrypted ? new TextDecoder().decode(decrypted) : null;
+  };
+  
+  const amountStr = decryptData(mint.encryptedAmount);
+  const recipient = decryptData(mint.encryptedRecipient);
+  
+  let amount: bigint | null = null;
+  if (amountStr) {
+    try {
+      amount = BigInt(amountStr);
+    } catch {
+      amount = null;
+    }
+  }
+  
+  return {
+    valid: amountStr !== null && recipient !== null,
+    amount,
+    recipient,
+  };
+}
+
+// ============= Demo Function =============
+
+export function runCharmCryptoDemo(): {
+  originalSpell: Spell;
+  encrypted: EncryptedSpellData;
+  decrypted: Spell | null;
+  hashVerified: boolean;
+} {
+  const spell = new SpellBuilder()
+    .addApp('$bollar', '0'.repeat(64))
+    .addInput('a'.repeat(64), 0)
+    .addOutput(1000, 'bc1q...')
+    .build();
+  
+  const { encrypted, key } = encryptSpell(spell);
+  const decrypted = decryptSpell(encrypted, key);
+  const hashVerified = decrypted ? verifySpellHash(decrypted, encrypted.spellHash, key, encrypted.nonce) : false;
+  
+  return { originalSpell: spell, encrypted, decrypted, hashVerified };
+}
+
 // ============= Exports =============
 
 export const CharmsWasmSDK = {
@@ -484,6 +841,19 @@ export const CharmsWasmSDK = {
   // Clients
   createCharmsClient,
   createWalletAdapter,
+  
+  // Charm Crypto (@jedisct1/charm)
+  CharmCrypto,
+  encryptSpell,
+  decryptSpell,
+  verifySpellHash,
+  createEncryptedEscrow,
+  decryptEscrow,
+  createEncryptedBounty,
+  decryptBounty,
+  createEncryptedBollarMint,
+  decryptBollarMint,
+  runCharmCryptoDemo,
 };
 
 export default CharmsWasmSDK;
