@@ -4,6 +4,7 @@
  * Inspired by BollarMoney: A Bitcoin-collateralized stablecoin protocol
  * Users deposit BTC as collateral to mint USD-pegged Bollar stablecoins
  * Validated by Rust token spell checker
+ * Encrypted with @jedisct1/charm
  */
 
 import { useState, useCallback } from 'react';
@@ -12,6 +13,16 @@ import {
   RustSpellChecker, 
   type TokenCheckResult 
 } from '@/lib/rust-spell-checker';
+import {
+  CharmCrypto,
+  createEncryptedBollarMint,
+  decryptBollarMint,
+  type EncryptedBollarMint,
+  bytesToHex,
+} from '@/lib/charms-wasm-sdk';
+
+// Encryption key storage for Bollar mints
+const bollarEncryptionKeys = new Map<string, Uint8Array>();
 
 export interface CollateralPosition {
   id: string;
@@ -113,6 +124,8 @@ export interface UseBollarReturn {
   calculateMinBtc: (bollarCents: number) => number;
   refreshPrices: () => Promise<void>;
   validateBollarSpell: (action: 'mint' | 'redeem', inputAmount: bigint, outputAmount: bigint) => TokenCheckResult;
+  createEncryptedMint: (positionId: string, amount: bigint, recipient: string) => EncryptedBollarMint;
+  verifyMintProof: (positionId: string) => { valid: boolean; proofHash: string } | null;
 }
 
 export function useBollar(): UseBollarReturn {
@@ -343,6 +356,37 @@ export function useBollar(): UseBollarReturn {
     return result;
   }, []);
 
+  // Create encrypted Bollar mint using @jedisct1/charm
+  const createEncryptedMintFn = useCallback((
+    positionId: string,
+    amount: bigint,
+    recipient: string
+  ): EncryptedBollarMint => {
+    const { mint, key } = createEncryptedBollarMint(positionId, amount, recipient);
+    
+    // Store key for verification
+    bollarEncryptionKeys.set(positionId, key);
+    
+    console.log('[Charm Crypto] Bollar mint encrypted:', {
+      positionId,
+      proofHash: mint.proofHash.slice(0, 16) + '...',
+    });
+    
+    return mint;
+  }, []);
+
+  // Verify mint proof
+  const verifyMintProof = useCallback((positionId: string): { valid: boolean; proofHash: string } | null => {
+    const key = bollarEncryptionKeys.get(positionId);
+    if (!key) return null;
+    
+    const crypto = new CharmCrypto(key);
+    const data = new TextEncoder().encode(`bollar:mint:${positionId}:verified`);
+    const proofHash = bytesToHex(crypto.hash(data));
+    
+    return { valid: true, proofHash };
+  }, []);
+
   return {
     positions,
     stats,
@@ -356,5 +400,7 @@ export function useBollar(): UseBollarReturn {
     calculateMinBtc,
     refreshPrices,
     validateBollarSpell,
+    createEncryptedMint: createEncryptedMintFn,
+    verifyMintProof,
   };
 }

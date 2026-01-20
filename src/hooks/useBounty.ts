@@ -6,6 +6,7 @@
  * - Maintainer approval signing
  * - Deadline-based automatic refund
  * - Rust spell checker validation
+ * - @jedisct1/charm encryption
  */
 
 import { useState, useCallback } from 'react';
@@ -15,6 +16,16 @@ import {
   EscrowState,
   type EscrowCheckResult 
 } from '@/lib/rust-spell-checker';
+import {
+  CharmCrypto,
+  createEncryptedBounty,
+  decryptBounty,
+  type EncryptedBountyData,
+  bytesToHex,
+} from '@/lib/charms-wasm-sdk';
+
+// Encryption key storage
+const bountyEncryptionKeys = new Map<string, Uint8Array>();
 
 export type BountyStatus = 
   | 'open' 
@@ -172,6 +183,8 @@ export interface UseBountyReturn {
   selectBounty: (id: string | null) => void;
   checkDeadlines: () => void;
   validateBountySpell: (bountyId: string, action: 'claim' | 'release' | 'refund') => EscrowCheckResult;
+  encryptBountyData: (bountyId: string) => { encrypted: EncryptedBountyData; proofHash: string } | null;
+  getEncryptionProof: (bountyId: string) => string | null;
 }
 
 export function useBounty(): UseBountyReturn {
@@ -423,6 +436,38 @@ export function useBounty(): UseBountyReturn {
     return RustSpellChecker.escrowCheck(app, tx, RustSpellChecker.Data.empty(), RustSpellChecker.Data.empty());
   }, [bounties]);
 
+  // Encrypt bounty data using @jedisct1/charm
+  const encryptBountyData = useCallback((bountyId: string): { encrypted: EncryptedBountyData; proofHash: string } | null => {
+    const bounty = bounties.find(b => b.id === bountyId);
+    if (!bounty) return null;
+
+    const { bounty: encrypted, key } = createEncryptedBounty(
+      bountyId,
+      bounty.description,
+      `${bounty.amount} satoshis`
+    );
+    
+    // Store key for later use
+    bountyEncryptionKeys.set(bountyId, key);
+    
+    console.log('[Charm Crypto] Bounty encrypted:', {
+      bountyId,
+      proofHash: encrypted.proofHash.slice(0, 16) + '...',
+    });
+    
+    return { encrypted, proofHash: encrypted.proofHash };
+  }, [bounties]);
+
+  // Get encryption proof hash
+  const getEncryptionProof = useCallback((bountyId: string): string | null => {
+    const key = bountyEncryptionKeys.get(bountyId);
+    if (!key) return null;
+    
+    const crypto = new CharmCrypto(key);
+    const data = new TextEncoder().encode(`bounty:${bountyId}:verified`);
+    return bytesToHex(crypto.hash(data));
+  }, []);
+
   return {
     bounties,
     selectedBounty,
@@ -439,5 +484,7 @@ export function useBounty(): UseBountyReturn {
     selectBounty,
     checkDeadlines,
     validateBountySpell,
+    encryptBountyData,
+    getEncryptionProof,
   };
 }
