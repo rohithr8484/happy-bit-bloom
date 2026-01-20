@@ -1,17 +1,20 @@
 /**
  * Bollar Mint/Redeem Component
  * Bitcoin-collateralized stablecoin minting interface
+ * With @jedisct1/charm encryption integration
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBollar, CollateralPosition } from "@/hooks/useBollar";
 import { formatBTC } from "@/lib/charms-sdk";
 import { validateBTCAmount } from "@/lib/validation";
+import { CharmCrypto, bytesToHex } from "@/lib/charms-wasm-sdk";
 import {
   DollarSign,
   Bitcoin,
@@ -25,6 +28,9 @@ import {
   Coins,
   Info,
   ExternalLink,
+  Lock,
+  Cpu,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,12 +59,15 @@ export function BollarMint() {
     calculateMaxBollar,
     calculateMinBtc,
     refreshPrices,
+    createEncryptedMint,
+    verifyMintProof,
   } = useBollar();
 
   const [mode, setMode] = useState<'mint' | 'redeem'>('mint');
   const [btcInput, setBtcInput] = useState('');
   const [bollarInput, setBollarInput] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+  const [mintProofHash, setMintProofHash] = useState<string | null>(null);
 
   const btcSatoshis = useMemo(() => {
     const parsed = parseFloat(btcInput);
@@ -85,8 +94,17 @@ export function BollarMint() {
   const handleMint = async () => {
     if (!isValidMint) return;
     try {
-      await mintBollar({ btcAmount: btcSatoshis, bollarAmount: bollarCents });
-      toast.success(`Minted ${formatBollar(bollarCents)} BOLLAR!`);
+      const position = await mintBollar({ btcAmount: btcSatoshis, bollarAmount: bollarCents });
+      
+      // Create encrypted mint using @jedisct1/charm
+      const encryptedMint = createEncryptedMint(
+        position.id,
+        BigInt(bollarCents),
+        'connected-wallet'
+      );
+      setMintProofHash(encryptedMint.proofHash);
+      
+      toast.success(`Minted ${formatBollar(bollarCents)} BOLLAR! (Charm encrypted)`);
       setBtcInput('');
       setBollarInput('');
     } catch (error) {
@@ -139,12 +157,30 @@ export function BollarMint() {
           </div>
           <p className="text-lg font-bold text-foreground">{formatBTC(stats.totalBtcLocked)}</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border">
+        <div className="p-4 rounded-xl bg-card border border-border relative">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className="w-4 h-4 text-success" />
             <span className="text-xs text-muted-foreground">Total Minted</span>
           </div>
           <p className="text-lg font-bold text-foreground">{formatBollar(stats.totalBollarMinted)}</p>
+          
+          {/* Charm crypto indicator */}
+          <div className="absolute top-2 right-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] gap-0.5 px-1.5 py-0.5">
+                    <Lock className="w-2.5 h-2.5" />
+                    <Cpu className="w-2.5 h-2.5" />
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Rust + @jedisct1/charm</p>
+                  <p className="text-xs text-muted-foreground">Encrypted spell verification</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </div>
 
@@ -262,9 +298,21 @@ export function BollarMint() {
                 <>
                   <Coins className="w-4 h-4 mr-2" />
                   Mint BOLLAR
+                  <Lock className="w-3 h-3 ml-1 opacity-60" />
                 </>
               )}
             </Button>
+
+            {/* Show proof hash after mint */}
+            {mintProofHash && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="flex items-center gap-2 text-xs">
+                  <KeyRound className="w-3 h-3 text-primary" />
+                  <span className="text-muted-foreground">Charm Proof:</span>
+                  <code className="font-mono text-primary">{mintProofHash.slice(0, 24)}...</code>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

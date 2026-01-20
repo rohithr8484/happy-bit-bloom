@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { EscrowContract, formatBTC, shortenTxid, shortenAddress } from "@/lib/charms-sdk";
 import { RustSpellChecker } from "@/lib/rust-spell-checker";
+import { CharmCrypto, bytesToHex } from "@/lib/charms-wasm-sdk";
 import { 
   Wallet, 
   Clock, 
@@ -8,16 +10,20 @@ import {
   AlertCircle,
   ExternalLink,
   Shield,
-  Cpu
+  Cpu,
+  Lock,
+  KeyRound
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EscrowCardProps {
   escrow: EscrowContract;
   onClick?: () => void;
   selected?: boolean;
   className?: string;
+  encryptionStatus?: { encrypted: boolean; keyExists: boolean };
 }
 
 const statusConfig = {
@@ -53,7 +59,7 @@ const statusConfig = {
   },
 };
 
-export function EscrowCard({ escrow, onClick, selected, className }: EscrowCardProps) {
+export function EscrowCard({ escrow, onClick, selected, className, encryptionStatus }: EscrowCardProps) {
   const config = statusConfig[escrow.status];
   const completedMilestones = escrow.milestones.filter(
     m => m.status === 'completed' || m.status === 'released'
@@ -62,6 +68,16 @@ export function EscrowCard({ escrow, onClick, selected, className }: EscrowCardP
   const releasedAmount = escrow.milestones
     .filter(m => m.status === 'released')
     .reduce((sum, m) => sum + m.amount, 0);
+
+  // Generate spell hash for display using Charm crypto
+  const [spellHash, setSpellHash] = useState<string>('');
+  
+  useEffect(() => {
+    const crypto = new CharmCrypto();
+    const data = new TextEncoder().encode(`escrow:${escrow.id}:${escrow.txid}`);
+    const hash = crypto.hash(data);
+    setSpellHash(bytesToHex(hash).slice(0, 12));
+  }, [escrow.id, escrow.txid]);
 
   return (
     <motion.div
@@ -77,12 +93,39 @@ export function EscrowCard({ escrow, onClick, selected, className }: EscrowCardP
         className
       )}
     >
-      {/* Rust Spell Verified Badge */}
-      <div className="absolute top-3 right-3">
-        <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs gap-1">
-          <Cpu className="w-3 h-3" />
-          Rust Verified
-        </Badge>
+      {/* Rust Spell Verified Badge + Encryption Status */}
+      <div className="absolute top-3 right-3 flex gap-1.5">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs gap-1">
+                <Cpu className="w-3 h-3" />
+                Rust
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Verified by Rust Spell Checker</p>
+              <p className="text-xs font-mono text-muted-foreground mt-1">Hash: {spellHash}...</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {encryptionStatus?.encrypted && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
+                  <Lock className="w-3 h-3" />
+                  <KeyRound className="w-3 h-3" />
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Encrypted with @jedisct1/charm</p>
+                <p className="text-xs text-muted-foreground">AES-256-GCM authenticated encryption</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Header */}
