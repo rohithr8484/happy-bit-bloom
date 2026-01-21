@@ -2,6 +2,11 @@
 //! 
 //! This library implements a spell checker for the Charms protocol,
 //! demonstrating how to validate token transfers and state transitions.
+//! 
+//! Build with WASM support: `wasm-pack build --target web --features wasm`
+
+#[cfg(feature = "wasm")]
+pub mod wasm_bindings;
 
 pub use charms_sdk::data;
 
