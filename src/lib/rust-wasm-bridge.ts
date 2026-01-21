@@ -6,7 +6,11 @@
  * 2. WASM loader for direct Rust execution in browser (frontend)
  */
 
-import { supabase } from '@/integrations/supabase/client';
+// Lazy import to avoid initialization issues with env variables
+const getSupabase = async () => {
+  const { supabase } = await import('@/integrations/supabase/client');
+  return supabase;
+};
 
 // ============================================
 // Shared Types (matching Rust charms-data)
@@ -121,6 +125,7 @@ export class RustHttpClient {
     rustBridge: string;
     supportedTypes: string[];
   }> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       method: 'GET',
     });
@@ -138,6 +143,7 @@ export class RustHttpClient {
     x: RustData = { type: 'empty' },
     w: RustData = { type: 'empty' }
   ): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: {
         action: 'check',
@@ -165,6 +171,7 @@ export class RustHttpClient {
     tx: RustTransaction;
     checkResult: RustCheckResult;
   }> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: {
         action: 'build_token',
@@ -189,6 +196,7 @@ export class RustHttpClient {
     tx: RustTransaction;
     checkResult: RustCheckResult;
   }> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: {
         action: 'build_escrow',
@@ -210,6 +218,7 @@ export class RustHttpClient {
     outputCount: number;
     errors: string[];
   }> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: {
         action: 'verify_spell',
