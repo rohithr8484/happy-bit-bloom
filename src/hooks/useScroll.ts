@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   scrollProver, 
   ScrollProof, 
@@ -7,6 +7,10 @@ import {
   SCROLL_NETWORKS,
   ScrollNetwork 
 } from '@/lib/scroll-sdk';
+import {
+  useRustBridge,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 export interface ScrollProofState {
   proofId: string;
@@ -27,6 +31,21 @@ export function useScroll() {
 
   const networkConfig = SCROLL_NETWORKS[network];
   const queueStats = scrollProver.getQueueStats();
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    verifySpark,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useScroll] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const generateChunkProof = useCallback(async (blockCount: number = 3): Promise<ScrollProof | null> => {
     setLoading(true);
@@ -169,6 +188,48 @@ export function useScroll() {
     return result.valid;
   }, []);
 
+  // Validate Scroll proof using Rust WASM/HTTP bridge
+  const validateProofWithRustBridge = useCallback(async (proof: ScrollProof): Promise<RustCheckResult | null> => {
+    if (!verifySpark) return null;
+
+    try {
+      // Build a spell structure representing the Scroll proof
+      const blockCount = proof.blockRange.end - proof.blockRange.start + 1;
+      const spell = {
+        version: 2,
+        apps: { '$scroll': { vkHash: proof.proofId, namespace: 'scroll' } },
+        ins: Array.from({ length: blockCount }, (_, i) => ({ txid: proof.proofId, vout: i })),
+        outs: [{
+          value: 0,
+          script: 'OP_RETURN',
+          charms: [{
+            appVkHash: proof.proofId,
+            state: {
+              proofType: proof.type,
+              blockRange: proof.blockRange,
+            },
+          }],
+        }],
+      };
+
+      const result = await verifySpark(spell);
+      console.log(`[useScroll] Rust bridge proof validation (${rustBridgeMode}):`, result);
+      
+      return {
+        valid: result?.valid || false,
+        spellType: 'token',
+        details: {
+          inputSum: blockCount,
+          outputSum: 1,
+        },
+        errors: result?.errors || [],
+      };
+    } catch (error) {
+      console.error('[useScroll] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [verifySpark, rustBridgeMode]);
+
   return {
     network,
     setNetwork,
@@ -177,8 +238,11 @@ export function useScroll() {
     activeProof,
     proofHistory,
     loading,
+    rustBridgeMode,
+    rustBridgeVersion,
     generateChunkProof,
     generateBatchProof,
     verifyProof,
+    validateProofWithRustBridge,
   };
 }

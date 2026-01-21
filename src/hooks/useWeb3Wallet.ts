@@ -3,10 +3,15 @@
  * 
  * Connects to Bitcoin, Cardano, and Spark networks using @utxos/sdk
  * Project ID: e8afe4e9-356d-40a7-8c28-f8654e99fada
+ * Integrated with Rust WASM/HTTP bridge for transaction validation
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import {
+  useRustBridge,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 // UTXO SDK Configuration
 const UTXOS_PROJECT_ID = "e8afe4e9-356d-40a7-8c28-f8654e99fada";
@@ -89,10 +94,13 @@ export interface UseWeb3WalletReturn {
   bitcoinApi: Web3WalletApi | null;
   cardanoApi: Web3WalletApi | null;
   sparkApi: Web3WalletApi | null;
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
   connect: (walletType: 'bitcoin' | 'cardano' | 'spark') => Promise<void>;
   disconnect: () => void;
   signTransaction: (txHex: string) => Promise<string | null>;
   signMessage: (message: string) => Promise<string | null>;
+  validateTransactionWithRustBridge: (txHex: string) => Promise<RustCheckResult | null>;
 }
 
 export function useWeb3Wallet(): UseWeb3WalletReturn {
@@ -108,6 +116,21 @@ export function useWeb3Wallet(): UseWeb3WalletReturn {
   const [bitcoinApi, setBitcoinApi] = useState<Web3WalletApi | null>(null);
   const [cardanoApi, setCardanoApi] = useState<Web3WalletApi | null>(null);
   const [sparkApi, setSparkApi] = useState<Web3WalletApi | null>(null);
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    verifySpark,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useWeb3Wallet] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const connect = useCallback(async (walletType: 'bitcoin' | 'cardano' | 'spark') => {
     setWallet(prev => ({ ...prev, connecting: true }));
@@ -212,14 +235,60 @@ export function useWeb3Wallet(): UseWeb3WalletReturn {
     }
   }, [wallet.walletType, bitcoinApi, cardanoApi, sparkApi]);
 
+  // Validate transaction using Rust WASM/HTTP bridge
+  const validateTransactionWithRustBridge = useCallback(async (txHex: string): Promise<RustCheckResult | null> => {
+    if (!verifySpark) return null;
+
+    try {
+      // Build a spell structure for wallet transaction validation
+      const txHash = txHex.slice(0, 64).padEnd(64, '0');
+      const spell = {
+        version: 2,
+        apps: { '$wallet': { vkHash: txHash, namespace: wallet.walletType || 'bitcoin' } },
+        ins: [{ txid: txHash, vout: 0 }],
+        outs: [{
+          value: wallet.balance || 0,
+          script: 'OP_CHECKSIG',
+          charms: [{
+            appVkHash: txHash,
+            state: {
+              walletType: wallet.walletType,
+              network: wallet.network,
+              signed: true,
+            },
+          }],
+        }],
+      };
+
+      const result = await verifySpark(spell);
+      console.log(`[useWeb3Wallet] Rust bridge validation (${rustBridgeMode}):`, result);
+      
+      return {
+        valid: result?.valid || false,
+        spellType: 'token',
+        details: {
+          inputSum: result?.inputCount || 0,
+          outputSum: result?.outputCount || 0,
+        },
+        errors: result?.errors || [],
+      };
+    } catch (error) {
+      console.error('[useWeb3Wallet] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [verifySpark, rustBridgeMode, wallet.walletType, wallet.network, wallet.balance]);
+
   return {
     wallet,
     bitcoinApi,
     cardanoApi,
     sparkApi,
+    rustBridgeMode,
+    rustBridgeVersion,
     connect,
     disconnect,
     signTransaction,
     signMessage,
+    validateTransactionWithRustBridge,
   };
 }

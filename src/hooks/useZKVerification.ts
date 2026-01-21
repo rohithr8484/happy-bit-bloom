@@ -3,12 +3,17 @@
  * 
  * Integration with Boundless - the universal ZK protocol
  * and Kailua - ZK proving for OP Rollups
+ * Integrated with Rust WASM/HTTP bridge for spell validation
  * 
  * Demonstrates verifiable Bitcoin state proofs with functional proof generation
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { maestro } from '@/lib/maestro-sdk';
+import {
+  useRustBridge,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 export type ProofType = 
   | 'utxo_ownership'
@@ -170,11 +175,14 @@ export interface UseZKVerificationReturn {
   stats: ZKStats;
   loading: boolean;
   activeProof: ZKProof | null;
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
   
   // Actions
   generateProof: (request: ProofRequest) => Promise<ZKProof>;
   verifyProof: (proofId: string) => Promise<boolean>;
   cancelProof: (proofId: string) => void;
+  validateProofWithRustBridge: (proof: ZKProof) => Promise<RustCheckResult | null>;
   
   // Utilities
   getProofConfig: (type: ProofType) => typeof PROOF_CONFIGS[ProofType];
@@ -185,6 +193,21 @@ export function useZKVerification(): UseZKVerificationReturn {
   const [proofs, setProofs] = useState<ZKProof[]>(DEMO_PROOFS);
   const [loading, setLoading] = useState(false);
   const [activeProof, setActiveProof] = useState<ZKProof | null>(null);
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    verifySpark,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useZKVerification] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const stats: ZKStats = {
     proofsGenerated: proofs.filter(p => p.status === 'verified' || p.generatedAt).length,
@@ -392,14 +415,60 @@ export function useZKVerification(): UseZKVerificationReturn {
     return PROOF_CONFIGS[type].estimatedCost;
   }, []);
 
+  // Validate ZK proof using Rust WASM/HTTP bridge
+  const validateProofWithRustBridge = useCallback(async (proof: ZKProof): Promise<RustCheckResult | null> => {
+    if (!verifySpark) return null;
+
+    try {
+      // Build a spell structure for ZK proof validation
+      const spell = {
+        version: 2,
+        apps: { '$zk': { vkHash: proof.verificationKey, namespace: 'zk_verification' } },
+        ins: [{ txid: proof.inputHash.slice(2, 66).padEnd(64, '0'), vout: 0 }],
+        outs: [{
+          value: 0,
+          script: 'OP_RETURN',
+          charms: [{
+            appVkHash: proof.verificationKey,
+            state: {
+              proofType: proof.type,
+              status: proof.status,
+              verified: proof.status === 'verified',
+              journalHash: proof.journalHash,
+            },
+          }],
+        }],
+      };
+
+      const result = await verifySpark(spell);
+      console.log(`[useZKVerification] Rust bridge validation (${rustBridgeMode}):`, result);
+      
+      return {
+        valid: result?.valid || false,
+        spellType: 'token',
+        details: {
+          inputSum: result?.inputCount || 0,
+          outputSum: result?.outputCount || 0,
+        },
+        errors: result?.errors || [],
+      };
+    } catch (error) {
+      console.error('[useZKVerification] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [verifySpark, rustBridgeMode]);
+
   return {
     proofs,
     stats,
     loading,
     activeProof,
+    rustBridgeMode,
+    rustBridgeVersion,
     generateProof,
     verifyProof,
     cancelProof,
+    validateProofWithRustBridge,
     getProofConfig,
     estimateProofCost,
   };

@@ -2,6 +2,7 @@
  * Maestro Bitcoin API Hook
  * 
  * React hook for accessing Maestro's Bitcoin analytics features
+ * Integrated with Rust WASM/HTTP bridge for spell validation
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -16,6 +17,10 @@ import {
   TransactionInfo,
   UTXOInfo
 } from '@/lib/maestro-sdk';
+import {
+  useRustBridge,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 export interface MaestroStats {
   btcPrice: BitcoinPrice | null;
@@ -45,6 +50,10 @@ export interface UseMaestroReturn {
   loading: boolean;
   priceLoading: boolean;
   
+  // Rust Bridge
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
+  
   // Actions
   refreshPrice: () => Promise<void>;
   refreshAll: () => Promise<void>;
@@ -53,6 +62,7 @@ export interface UseMaestroReturn {
   getTransaction: (txid: string) => Promise<TransactionInfo | null>;
   getUTXO: (txid: string, vout: number) => Promise<UTXOInfo | null>;
   getRuneInfo: (runeId: string) => Promise<RuneInfo | null>;
+  validateTransactionWithRustBridge: (txid: string) => Promise<RustCheckResult | null>;
   
   // Formatters
   formatSats: (sats: number) => string;
@@ -72,6 +82,21 @@ export function useMaestro(): UseMaestroReturn {
   
   const [loading, setLoading] = useState(true);
   const [priceLoading, setPriceLoading] = useState(false);
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    verifySpark,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useMaestro] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const refreshPrice = useCallback(async () => {
     setPriceLoading(true);
@@ -153,6 +178,37 @@ export function useMaestro(): UseMaestroReturn {
     }).format(amount);
   }, []);
 
+  // Validate transaction using Rust WASM/HTTP bridge
+  const validateTransactionWithRustBridge = useCallback(async (txid: string): Promise<RustCheckResult | null> => {
+    if (!verifySpark) return null;
+
+    try {
+      // Build a minimal spell structure for transaction validation
+      const spell = {
+        version: 2,
+        apps: { '$tx': { vkHash: '0'.repeat(64), namespace: 'transaction' } },
+        ins: [{ txid, vout: 0 }],
+        outs: [{ value: 0, script: 'OP_RETURN' }],
+      };
+
+      const result = await verifySpark(spell);
+      console.log(`[useMaestro] Rust bridge transaction validation (${rustBridgeMode}):`, result);
+      
+      return {
+        valid: result?.valid || false,
+        spellType: 'token',
+        details: {
+          inputSum: result?.inputCount || 0,
+          outputSum: result?.outputCount || 0,
+        },
+        errors: result?.errors || [],
+      };
+    } catch (error) {
+      console.error('[useMaestro] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [verifySpark, rustBridgeMode]);
+
   return {
     stats,
     defiProtocols,
@@ -160,6 +216,8 @@ export function useMaestro(): UseMaestroReturn {
     topRunes,
     loading,
     priceLoading,
+    rustBridgeMode,
+    rustBridgeVersion,
     refreshPrice,
     refreshAll,
     getAddressInfo,
@@ -167,6 +225,7 @@ export function useMaestro(): UseMaestroReturn {
     getTransaction,
     getUTXO,
     getRuneInfo,
+    validateTransactionWithRustBridge,
     formatSats,
     formatUSD,
   };
