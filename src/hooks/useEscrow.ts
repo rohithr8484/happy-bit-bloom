@@ -16,6 +16,7 @@ import {
   decryptEscrow,
   type EncryptedEscrowData,
 } from '@/lib/charms-wasm-sdk';
+import { validateEscrow as validateEscrowApi, type EscrowValidationResponse } from '@/lib/rust-api-client';
 
 // Encryption key storage (in production, use secure key management)
 const escrowEncryptionKeys = new Map<string, Uint8Array>();
@@ -110,6 +111,7 @@ export interface UseEscrowReturn {
   disputeMilestone: (escrowId: string, milestoneId: string, reason: string) => Promise<void>;
   refreshEscrow: (escrowId: string) => Promise<void>;
   validateEscrowSpell: (escrowId: string, action: 'fund' | 'release' | 'dispute') => EscrowCheckResult;
+  validateEscrowViaApi: (escrowId: string, action: 'fund' | 'release' | 'dispute') => Promise<EscrowValidationResponse | null>;
   encryptEscrowData: (escrowId: string) => EncryptedEscrowData | null;
   getEncryptionStatus: (escrowId: string) => { encrypted: boolean; keyExists: boolean };
 }
@@ -404,6 +406,43 @@ export function useEscrow(): UseEscrowReturn {
     };
   }, []);
 
+  // Validate escrow via Rust API (Edge Function)
+  const validateEscrowViaApi = useCallback(async (
+    escrowId: string,
+    action: 'fund' | 'release' | 'dispute'
+  ): Promise<EscrowValidationResponse | null> => {
+    const escrow = escrows.find(e => e.id === escrowId);
+    if (!escrow) return null;
+
+    // Map status to state number
+    const currentState = (() => {
+      switch (escrow.status) {
+        case 'active': return 1; // Funded
+        case 'completed': return 3; // Completed
+        case 'disputed': return 4; // Disputed
+        case 'cancelled': return 6; // Cancelled
+        default: return 0; // Created
+      }
+    })();
+
+    // Map action to next state
+    const nextState = (() => {
+      switch (action) {
+        case 'fund': return 1; // Funded
+        case 'release': return 3; // Completed
+        case 'dispute': return 4; // Disputed
+      }
+    })();
+
+    const result = await validateEscrowApi(escrowId, currentState, nextState, escrow.totalAmount);
+    
+    if (result.data) {
+      console.log('[Rust API] Escrow validation:', result.data);
+    }
+    
+    return result.data;
+  }, [escrows]);
+
   return {
     escrows,
     selectedEscrow,
@@ -416,6 +455,7 @@ export function useEscrow(): UseEscrowReturn {
     disputeMilestone,
     refreshEscrow,
     validateEscrowSpell,
+    validateEscrowViaApi,
     encryptEscrowData,
     getEncryptionStatus,
   };
