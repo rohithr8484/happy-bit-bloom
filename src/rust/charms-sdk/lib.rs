@@ -2,8 +2,20 @@
 //! 
 //! This module provides the foundational types for interacting with Charms spells,
 //! transactions, and app verification on Bitcoin.
+//! 
+//! ## Features
+//! - `std`: Standard library support (default)
+//! - `serde`: Serialization support
+//! - `wasm`: WebAssembly bindings for browser use
 
 pub use charms_data as data;
+
+// WASM bindings module
+#[cfg(feature = "wasm")]
+pub mod wasm_bindings;
+
+#[cfg(feature = "wasm")]
+pub use wasm_bindings::*;
 
 /// Re-export core types for convenience
 pub mod prelude {
