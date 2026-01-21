@@ -591,6 +591,40 @@ export class RustBridge {
   }
   
   /**
+   * Verify a spark/spell from a generic object (for flexible hook usage)
+   */
+  async verifySpark(spell: Record<string, unknown>): Promise<{
+    valid: boolean;
+    version?: number;
+    inputCount?: number;
+    outputCount?: number;
+    errors: string[];
+  }> {
+    try {
+      // Convert generic spell to RustNormalizedSpell
+      const normalizedSpell: RustNormalizedSpell = {
+        version: (spell.version as number) || 2,
+        ins: ((spell.ins || []) as { txid: string; vout: number }[]).map((input) => ({
+          utxo_ref: { txid: input.txid, vout: input.vout },
+          charms: null,
+        })),
+        outs: ((spell.outs || []) as Record<string, unknown>[]).map((output, index) => ({
+          index,
+          charms: output.charms ? { tag: 'output', state: output.charms } : null,
+        })),
+      };
+      
+      return this.verifySpell(normalizedSpell);
+    } catch (error) {
+      console.warn('[RustBridge] verifySpark failed:', error);
+      return {
+        valid: false,
+        errors: [error instanceof Error ? error.message : String(error)],
+      };
+    }
+  }
+  
+  /**
    * Get version info
    */
   getVersion(): string {
@@ -630,6 +664,13 @@ export interface UseRustBridgeReturn {
     nextState: RustEscrowState;
     amount: number;
   }) => Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult } | null>;
+  verifySpark: (spell: Record<string, unknown>) => Promise<{
+    valid: boolean;
+    version?: number;
+    inputCount?: number;
+    outputCount?: number;
+    errors: string[];
+  } | null>;
 }
 
 export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBridgeReturn {
@@ -682,6 +723,24 @@ export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBr
     return bridge.buildEscrow(params);
   }, [bridge]);
   
+  const verifySpark = useCallback(async (spell: Record<string, unknown>): Promise<{
+    valid: boolean;
+    version?: number;
+    inputCount?: number;
+    outputCount?: number;
+    errors: string[];
+  } | null> => {
+    if (!bridge) return null;
+    try {
+      // Use the bridge's verifySpark method or simulate validation
+      const result = await bridge.verifySpark(spell as RustNormalizedSpell);
+      return result;
+    } catch (error) {
+      console.error('[useRustBridge] verifySpark failed:', error);
+      return { valid: false, errors: [String(error)] };
+    }
+  }, [bridge]);
+  
   return {
     bridge,
     mode,
@@ -690,6 +749,7 @@ export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBr
     checkSpell,
     buildToken,
     buildEscrow,
+    verifySpark,
   };
 }
 
