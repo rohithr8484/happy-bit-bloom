@@ -610,7 +610,9 @@ export class RustBridge {
         })),
         outs: ((spell.outs || []) as Record<string, unknown>[]).map((output, index) => ({
           index,
-          charms: output.charms ? { tag: 'output', state: output.charms } : null,
+          charms: output.charms 
+            ? { apps: { output: { type: 'bytes' as const, value: JSON.stringify(output.charms) } } } 
+            : null,
         })),
       };
       
@@ -732,8 +734,21 @@ export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBr
   } | null> => {
     if (!bridge) return null;
     try {
-      // Use the bridge's verifySpark method or simulate validation
-      const result = await bridge.verifySpark(spell as RustNormalizedSpell);
+      // Convert the generic spell to RustNormalizedSpell format
+      const normalizedSpell: RustNormalizedSpell = {
+        version: (spell.version as number) || 2,
+        ins: ((spell.ins || []) as { txid: string; vout: number }[]).map((input) => ({
+          utxo_ref: { txid: input.txid, vout: input.vout },
+          charms: null,
+        })),
+        outs: ((spell.outs || []) as Record<string, unknown>[]).map((output, index) => ({
+          index,
+          charms: output.charms 
+            ? { apps: { output: { type: 'bytes' as const, value: JSON.stringify(output.charms) } } } 
+            : null,
+        })),
+      };
+      const result = await bridge.verifySpell(normalizedSpell);
       return result;
     } catch (error) {
       console.error('[useRustBridge] verifySpark failed:', error);
