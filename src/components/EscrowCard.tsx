@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import { EscrowContract, formatBTC, shortenTxid, shortenAddress } from "@/lib/charms-sdk";
 import { RustSpellChecker } from "@/lib/rust-spell-checker";
 import { CharmCrypto, bytesToHex } from "@/lib/charms-wasm-sdk";
-import { healthCheck, type HealthResponse } from "@/lib/rust-api-client";
 import { 
   Wallet, 
   Clock, 
@@ -13,8 +12,7 @@ import {
   Shield,
   Cpu,
   Lock,
-  KeyRound,
-  Server
+  KeyRound
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -73,18 +71,12 @@ export function EscrowCard({ escrow, onClick, selected, className, encryptionSta
 
   // Generate spell hash for display using Charm crypto
   const [spellHash, setSpellHash] = useState<string>('');
-  const [apiConnected, setApiConnected] = useState<boolean>(false);
   
   useEffect(() => {
     const crypto = new CharmCrypto();
     const data = new TextEncoder().encode(`escrow:${escrow.id}:${escrow.txid}`);
     const hash = crypto.hash(data);
     setSpellHash(bytesToHex(hash).slice(0, 12));
-    
-    // Check Rust API connection
-    healthCheck().then(result => {
-      setApiConnected(result.rust_verified);
-    }).catch(() => setApiConnected(false));
   }, [escrow.id, escrow.txid]);
 
   return (
@@ -101,32 +93,8 @@ export function EscrowCard({ escrow, onClick, selected, className, encryptionSta
         className
       )}
     >
-      {/* Rust Spell Verified Badge + Encryption Status + API Status */}
+      {/* Rust Spell Verified Badge + Encryption Status */}
       <div className="absolute top-3 right-3 flex gap-1.5">
-        {/* API Connection Badge */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={cn(
-                  "text-xs gap-1",
-                  apiConnected 
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" 
-                    : "bg-muted text-muted-foreground border-muted"
-                )}
-              >
-                <Server className="w-3 h-3" />
-                API
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">{apiConnected ? 'Connected to Rust API' : 'API Offline'}</p>
-              <p className="text-xs text-muted-foreground">Edge Function: spell-checker</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
