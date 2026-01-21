@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRustZKProver } from "@/hooks/useRustZKProver";
 import { isCorrect, getrandom, type NormalizedSpell, type SpellValidation } from "@/lib/rust-zk-prover";
 import { Charm, bytesToHex, runCharmDemo } from "@/lib/charm-crypto";
+import { useRustApi, type RewardResponse, type SpellCheckResponse } from "@/lib/rust-api-client";
 import {
   Gem,
   CheckCircle,
@@ -35,6 +36,8 @@ import {
   ShieldCheck,
   FileCheck,
   KeyRound,
+  Server,
+  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,7 +89,8 @@ const DEMO_SPELLS = {
 
 export function CharmsFlowDiagram() {
   const { buildCharmsApp, verifySpell } = useRustZKProver();
-  const [activeTab, setActiveTab] = useState<"spellChecker" | "builder" | "charmCrypto">("spellChecker");
+  const rustApi = useRustApi();
+  const [activeTab, setActiveTab] = useState<"spellChecker" | "builder" | "charmCrypto" | "rustApi">("spellChecker");
   const [spellInput, setSpellInput] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
   const [verificationResult, setVerificationResult] = useState<SpellValidation | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -144,6 +148,7 @@ export function CharmsFlowDiagram() {
     { id: "spellChecker" as const, label: "Spell Checker", icon: Shield },
     { id: "builder" as const, label: "Spell Builder", icon: FileCode },
     { id: "charmCrypto" as const, label: "Spell Verifier", icon: Lock },
+    { id: "rustApi" as const, label: "Rust API", icon: Server },
   ];
 
   return (
@@ -345,6 +350,20 @@ export function CharmsFlowDiagram() {
             className="space-y-6"
           >
             <CharmCryptoPanel />
+          </motion.div>
+        )}
+
+        {/* Rust API Tab */}
+        {activeTab === "rustApi" && (
+          <motion.div
+            key="rustApi"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <RustApiPanel />
           </motion.div>
         )}
       </AnimatePresence>
@@ -793,6 +812,97 @@ function SpellBuilder() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Rust API Panel - Demonstrates calling Rust backend via HTTP API
+function RustApiPanel() {
+  const rustApi = useRustApi();
+  const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'connected' | 'error'>('idle');
+  const [rewardData, setRewardData] = useState<RewardResponse | null>(null);
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; details: string } | null>(null);
+
+  const handleHealthCheck = async () => {
+    setApiStatus('loading');
+    const result = await rustApi.healthCheck();
+    if (result.data) {
+      setApiStatus('connected');
+      toast.success('Connected to Rust API!');
+    } else {
+      setApiStatus('error');
+      toast.error(result.error || 'Connection failed');
+    }
+  };
+
+  const handleGetReward = async () => {
+    const result = await rustApi.getReward();
+    if (result.data) {
+      setRewardData(result.data);
+      toast.success(`Reward: ${result.data.amount} sats`);
+    }
+  };
+
+  const handleValidateToken = async () => {
+    const result = await rustApi.validateToken('token:TEST', [1000], [700, 300], true);
+    if (result.data) {
+      setValidationResult(result.data);
+      toast.success(result.data.valid ? 'Token spell valid!' : 'Token spell invalid');
+    }
+  };
+
+  return (
+    <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
+      <div className="flex items-center gap-4 mb-6">
+        <motion.div
+          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/30 to-amber-500/20 flex items-center justify-center"
+          whileHover={{ scale: 1.1 }}
+        >
+          <Server className="w-7 h-7 text-orange-400" />
+        </motion.div>
+        <div>
+          <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
+            Rust API
+            <Badge className={apiStatus === 'connected' ? "bg-success/20 text-success" : "bg-muted"}>
+              {apiStatus === 'connected' ? 'Connected' : apiStatus === 'loading' ? 'Connecting...' : 'Offline'}
+            </Badge>
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Call Rust spell checker via HTTP API (Edge Function backend)
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <Button variant="outline" onClick={handleHealthCheck} disabled={apiStatus === 'loading'}>
+          <Activity className="w-4 h-4 mr-2" />
+          Health Check
+        </Button>
+        <Button variant="outline" onClick={handleGetReward} disabled={apiStatus !== 'connected'}>
+          <Coins className="w-4 h-4 mr-2" />
+          Get Reward
+        </Button>
+        <Button variant="outline" onClick={handleValidateToken} disabled={apiStatus !== 'connected'}>
+          <Shield className="w-4 h-4 mr-2" />
+          Validate Token
+        </Button>
+      </div>
+
+      {rewardData && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-xl bg-success/10 border border-success/30 mb-4">
+          <div className="text-sm font-medium text-success">Reward Response</div>
+          <div className="font-mono text-xs mt-2">Amount: {rewardData.amount} sats | Rust Verified: ✓</div>
+        </motion.div>
+      )}
+
+      {validationResult && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`p-4 rounded-xl border ${validationResult.valid ? 'bg-success/10 border-success/30' : 'bg-destructive/10 border-destructive/30'}`}>
+          <div className={`text-sm font-medium ${validationResult.valid ? 'text-success' : 'text-destructive'}`}>
+            {validationResult.valid ? '✓ Spell Valid' : '✗ Spell Invalid'}
+          </div>
+          <div className="font-mono text-xs mt-2 text-muted-foreground">{validationResult.details}</div>
+        </motion.div>
+      )}
     </div>
   );
 }
