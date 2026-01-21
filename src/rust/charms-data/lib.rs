@@ -2,6 +2,11 @@
 //! 
 //! This crate defines the fundamental data structures used throughout
 //! the Charms ecosystem for spell verification and transaction processing.
+//! 
+//! Build with WASM support: `wasm-pack build --target web --features wasm`
+
+#[cfg(feature = "wasm")]
+pub mod wasm_bindings;
 
 use std::collections::BTreeMap;
 

@@ -236,9 +236,10 @@ export class RustHttpClient {
 // ============================================
 
 export interface RustWasmModule {
-  // Core functions
+  // Core functions from charms-sdk
   check_spell(app_json: string, tx_json: string, x_json: string, w_json: string): unknown;
   check_token(app_json: string, tx_json: string, x_json: string): unknown;
+  check_nft(app_json: string, tx_json: string, x_json: string): unknown;
   check_escrow(app_json: string, tx_json: string): unknown;
   verify_spell(spell_json: string): unknown;
   build_token_tx(
@@ -248,6 +249,20 @@ export interface RustWasmModule {
     output_amounts_json: string
   ): unknown;
   get_version(): string;
+  
+  // Additional functions from charmix
+  check_bounty?(app_json: string, tx_json: string, x_json: string): unknown;
+  check_bollar?(app_json: string, tx_json: string, x_json: string): unknown;
+  build_escrow_tx?(app_tag: string, current_state: number | null, next_state: number, amount: number): unknown;
+  get_charmix_version?(): string;
+  
+  // Data builders from charms-data
+  get_data_version?(): string;
+  create_empty_data?(): string;
+  create_u64_data?(value: number): string;
+  create_bytes_data?(hex: string): string;
+  validate_charm_state?(json: string): boolean;
+  validate_transaction?(json: string): boolean;
 }
 
 // ============================================
@@ -305,15 +320,19 @@ export async function loadRustWasm(): Promise<RustWasmModule> {
  */
 function createFallbackModule(): RustWasmModule {
   return {
-    check_spell(app_json: string, tx_json: string, x_json: string, w_json: string): unknown {
+    check_spell(app_json: string, tx_json: string, x_json: string, _w_json: string): unknown {
       const app = JSON.parse(app_json);
-      const tx = JSON.parse(tx_json);
-      const x = JSON.parse(x_json);
       
       if (app.tag.startsWith('token:')) {
         return this.check_token(app_json, tx_json, x_json);
+      } else if (app.tag.startsWith('nft:')) {
+        return this.check_nft!(app_json, tx_json, x_json);
       } else if (app.tag.startsWith('escrow:')) {
         return this.check_escrow(app_json, tx_json);
+      } else if (app.tag.startsWith('bounty:')) {
+        return this.check_bounty!(app_json, tx_json, x_json);
+      } else if (app.tag.startsWith('bollar:')) {
+        return this.check_bollar!(app_json, tx_json, x_json);
       }
       
       return {
@@ -323,7 +342,7 @@ function createFallbackModule(): RustWasmModule {
       };
     },
     
-    check_token(app_json: string, tx_json: string, x_json: string): unknown {
+    check_token(app_json: string, tx_json: string, _x_json: string): unknown {
       const app: RustApp = JSON.parse(app_json);
       const tx: RustTransaction = JSON.parse(tx_json);
       
@@ -354,6 +373,56 @@ function createFallbackModule(): RustWasmModule {
         output_sum: outputSum,
         is_mint: inputSum === 0 && outputSum > 0,
         is_burn: inputSum > outputSum,
+        errors,
+      };
+    },
+    
+    check_nft(app_json: string, tx_json: string, x_json: string): unknown {
+      const app: RustApp = JSON.parse(app_json);
+      const tx: RustTransaction = JSON.parse(tx_json);
+      const x = JSON.parse(x_json);
+      
+      const errors: string[] = [];
+      const inputNfts: string[] = [];
+      const outputNfts: string[] = [];
+      const duplicateNfts: string[] = [];
+      
+      for (const input of tx.inputs) {
+        if (input.charm_state?.apps[app.tag]?.type === 'bytes') {
+          inputNfts.push((input.charm_state.apps[app.tag] as { type: 'bytes'; value: string }).value);
+        }
+      }
+      
+      for (const output of tx.outputs) {
+        if (output.charm_state?.apps[app.tag]?.type === 'bytes') {
+          outputNfts.push((output.charm_state.apps[app.tag] as { type: 'bytes'; value: string }).value);
+        }
+      }
+      
+      // Check for duplicates
+      const seen = new Set<string>();
+      for (const nft of outputNfts) {
+        if (seen.has(nft)) {
+          duplicateNfts.push(nft);
+          errors.push(`Duplicate NFT in outputs: ${nft}`);
+        }
+        seen.add(nft);
+      }
+      
+      // Check mints have authorization
+      for (const nft of outputNfts) {
+        if (!inputNfts.includes(nft)) {
+          if (x.type === 'empty') {
+            errors.push(`NFT mint without authorization: ${nft}`);
+          }
+        }
+      }
+      
+      return {
+        valid: errors.length === 0,
+        spell_type: 'nft',
+        nft_ids: outputNfts,
+        duplicate_nfts: duplicateNfts,
         errors,
       };
     },
@@ -402,6 +471,59 @@ function createFallbackModule(): RustWasmModule {
       };
     },
     
+    check_bounty(app_json: string, tx_json: string, _x_json: string): unknown {
+      const app: RustApp = JSON.parse(app_json);
+      const tx: RustTransaction = JSON.parse(tx_json);
+      
+      const stateNames = ['Open', 'InProgress', 'Completed', 'Cancelled', 'Disputed'];
+      const errors: string[] = [];
+      
+      let currentState: number | null = null;
+      let nextState: number | null = null;
+      
+      for (const input of tx.inputs) {
+        if (input.charm_state?.apps[app.tag]?.type === 'u64') {
+          currentState = (input.charm_state.apps[app.tag] as { type: 'u64'; value: number }).value;
+          break;
+        }
+      }
+      
+      for (const output of tx.outputs) {
+        if (output.charm_state?.apps[app.tag]?.type === 'u64') {
+          nextState = (output.charm_state.apps[app.tag] as { type: 'u64'; value: number }).value;
+          break;
+        }
+      }
+      
+      const validTransitions: Array<[number | null, number | null]> = [
+        [null, 0], [0, 1], [1, 2], [0, 3], [1, 4], [4, 2], [4, 3],
+      ];
+      
+      const isValid = validTransitions.some(([from, to]) => from === currentState && to === nextState);
+      
+      if (!isValid) {
+        errors.push(`Invalid bounty transition: ${stateNames[currentState ?? 0] ?? 'None'} -> ${stateNames[nextState ?? 0] ?? 'None'}`);
+      }
+      
+      return {
+        valid: isValid,
+        spell_type: 'bounty',
+        current_state: currentState !== null ? stateNames[currentState] : 'None',
+        next_state: nextState !== null ? stateNames[nextState] : 'None',
+        state_transition_valid: isValid,
+        errors,
+      };
+    },
+    
+    check_bollar(app_json: string, tx_json: string, x_json: string): unknown {
+      // Bollar (stablecoin) uses token rules with additional collateral checks
+      const tokenResult = this.check_token(app_json, tx_json, x_json) as Record<string, unknown>;
+      return {
+        ...tokenResult,
+        spell_type: 'bollar',
+      };
+    },
+    
     verify_spell(spell_json: string): unknown {
       const spell: RustNormalizedSpell = JSON.parse(spell_json);
       const valid = spell.version > 0 && spell.ins.length > 0 && spell.outs.length > 0;
@@ -446,8 +568,74 @@ function createFallbackModule(): RustWasmModule {
       return { app, tx };
     },
     
+    build_escrow_tx(app_tag: string, current_state: number | null, next_state: number, amount: number): unknown {
+      const app: RustApp = { tag: app_tag, vk_hash: '0'.repeat(64) };
+      
+      const inputs: RustTxInput[] = current_state !== null ? [{
+        utxo_ref: { txid: '0'.repeat(64), vout: 0 },
+        charm_state: {
+          apps: { [app_tag]: { type: 'u64' as const, value: current_state } },
+        },
+      }] : [];
+      
+      const outputs: RustTxOutput[] = [{
+        index: 0,
+        value: amount,
+        script_pubkey: '0014',
+        charm_state: {
+          apps: { [app_tag]: { type: 'u64' as const, value: next_state } },
+        },
+      }];
+      
+      const tx: RustTransaction = {
+        txid: '0'.repeat(64),
+        inputs,
+        outputs,
+      };
+      
+      return { app, tx };
+    },
+    
     get_version(): string {
       return '0.10.0-ts-fallback';
+    },
+    
+    get_charmix_version(): string {
+      return '0.1.0-ts-fallback';
+    },
+    
+    get_data_version(): string {
+      return '0.10.0-ts-fallback';
+    },
+    
+    create_empty_data(): string {
+      return '{"type":"Empty"}';
+    },
+    
+    create_u64_data(value: number): string {
+      return `{"type":"U64","value":${value}}`;
+    },
+    
+    create_bytes_data(hex: string): string {
+      return `{"type":"Bytes","value":"${hex}"}`;
+    },
+    
+    validate_charm_state(json: string): boolean {
+      try {
+        const state = JSON.parse(json);
+        return state && typeof state.apps === 'object';
+      } catch {
+        return false;
+      }
+    },
+    
+    validate_transaction(json: string): boolean {
+      try {
+        const tx = JSON.parse(json);
+        return tx && typeof tx.txid === 'string' && Array.isArray(tx.inputs) && Array.isArray(tx.outputs);
+      } catch {
+        return false;
+      }
     },
   };
 }
