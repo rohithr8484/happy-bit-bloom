@@ -9,7 +9,7 @@
  * - @jedisct1/charm encryption
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
 import { 
   RustSpellChecker, 
@@ -23,6 +23,11 @@ import {
   type EncryptedBountyData,
   bytesToHex,
 } from '@/lib/charms-wasm-sdk';
+import {
+  useRustBridge,
+  RustEscrowState,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 // Encryption key storage
 const bountyEncryptionKeys = new Map<string, Uint8Array>();
@@ -169,6 +174,8 @@ export interface UseBountyReturn {
   selectedBounty: BountyTask | null;
   loading: boolean;
   oracleLoading: boolean;
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
   
   // Actions
   createBounty: (params: CreateBountyParams) => Promise<BountyTask>;
@@ -183,6 +190,7 @@ export interface UseBountyReturn {
   selectBounty: (id: string | null) => void;
   checkDeadlines: () => void;
   validateBountySpell: (bountyId: string, action: 'claim' | 'release' | 'refund') => EscrowCheckResult;
+  validateBountyWithRustBridge: (bountyId: string, action: 'claim' | 'release' | 'refund') => Promise<RustCheckResult | null>;
   encryptBountyData: (bountyId: string) => { encrypted: EncryptedBountyData; proofHash: string } | null;
   getEncryptionProof: (bountyId: string) => string | null;
 }
@@ -193,7 +201,22 @@ export function useBounty(): UseBountyReturn {
   const [loading, setLoading] = useState(false);
   const [oracleLoading, setOracleLoading] = useState(false);
 
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    buildEscrow,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
   const oracle = OracleService.getInstance();
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useBounty] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const createBounty = useCallback(async (params: CreateBountyParams): Promise<BountyTask> => {
     setLoading(true);
@@ -468,11 +491,59 @@ export function useBounty(): UseBountyReturn {
     return bytesToHex(crypto.hash(data));
   }, []);
 
+  // Validate bounty using Rust WASM/HTTP bridge
+  const validateBountyWithRustBridge = useCallback(async (
+    bountyId: string,
+    action: 'claim' | 'release' | 'refund'
+  ): Promise<RustCheckResult | null> => {
+    const bounty = bounties.find(b => b.id === bountyId);
+    if (!bounty || !buildEscrow) return null;
+
+    // Map bounty status to escrow states
+    const currentState = (() => {
+      switch (bounty.status) {
+        case 'open': return RustEscrowState.Created;
+        case 'claimed':
+        case 'submitted': return RustEscrowState.Funded;
+        case 'approved':
+        case 'completed': return RustEscrowState.Released;
+        case 'disputed': return RustEscrowState.Disputed;
+        case 'refunded': return RustEscrowState.Refunded;
+        default: return RustEscrowState.Created;
+      }
+    })();
+
+    const nextState = (() => {
+      switch (action) {
+        case 'claim': return RustEscrowState.Funded;
+        case 'release': return RustEscrowState.Released;
+        case 'refund': return RustEscrowState.Refunded;
+      }
+    })();
+
+    try {
+      const result = await buildEscrow({
+        appTag: `bounty:${bountyId}`,
+        currentState,
+        nextState,
+        amount: bounty.amount,
+      });
+
+      console.log(`[useBounty] Rust bridge validation (${rustBridgeMode}):`, result?.checkResult);
+      return result?.checkResult || null;
+    } catch (error) {
+      console.error('[useBounty] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [bounties, buildEscrow, rustBridgeMode]);
+
   return {
     bounties,
     selectedBounty,
     loading,
     oracleLoading,
+    rustBridgeMode,
+    rustBridgeVersion,
     createBounty,
     claimBounty,
     submitWork,
@@ -484,6 +555,7 @@ export function useBounty(): UseBountyReturn {
     selectBounty,
     checkDeadlines,
     validateBountySpell,
+    validateBountyWithRustBridge,
     encryptBountyData,
     getEncryptionProof,
   };
