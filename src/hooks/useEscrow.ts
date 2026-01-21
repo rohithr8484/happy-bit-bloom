@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   charmsSDK, 
   EscrowContract, 
@@ -16,6 +16,11 @@ import {
   decryptEscrow,
   type EncryptedEscrowData,
 } from '@/lib/charms-wasm-sdk';
+import {
+  useRustBridge,
+  RustEscrowState,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 // Encryption key storage (in production, use secure key management)
 const escrowEncryptionKeys = new Map<string, Uint8Array>();
@@ -103,6 +108,8 @@ export interface UseEscrowReturn {
   selectedEscrow: EscrowContract | null;
   loading: boolean;
   error: string | null;
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
   createEscrow: (params: CreateEscrowParams) => Promise<EscrowContract>;
   selectEscrow: (id: string | null) => void;
   completeMilestone: (escrowId: string, milestoneId: string, proof: string) => Promise<void>;
@@ -110,6 +117,7 @@ export interface UseEscrowReturn {
   disputeMilestone: (escrowId: string, milestoneId: string, reason: string) => Promise<void>;
   refreshEscrow: (escrowId: string) => Promise<void>;
   validateEscrowSpell: (escrowId: string, action: 'fund' | 'release' | 'dispute') => EscrowCheckResult;
+  validateEscrowWithRustBridge: (escrowId: string, action: 'fund' | 'release' | 'dispute') => Promise<RustCheckResult | null>;
   encryptEscrowData: (escrowId: string) => EncryptedEscrowData | null;
   getEncryptionStatus: (escrowId: string) => { encrypted: boolean; keyExists: boolean };
 }
@@ -132,6 +140,21 @@ export function useEscrow(): UseEscrowReturn {
   const [selectedEscrow, setSelectedEscrow] = useState<EscrowContract | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    buildEscrow,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  // Log Rust bridge status
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useEscrow] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const createEscrow = useCallback(async (params: CreateEscrowParams): Promise<EscrowContract> => {
     setLoading(true);
@@ -404,11 +427,56 @@ export function useEscrow(): UseEscrowReturn {
     };
   }, []);
 
+  // Validate escrow using Rust WASM/HTTP bridge
+  const validateEscrowWithRustBridge = useCallback(async (
+    escrowId: string,
+    action: 'fund' | 'release' | 'dispute'
+  ): Promise<RustCheckResult | null> => {
+    const escrow = escrows.find(e => e.id === escrowId);
+    if (!escrow || !buildEscrow) return null;
+
+    // Map action to escrow states
+    const currentState = (() => {
+      switch (escrow.status) {
+        case 'active': return RustEscrowState.Funded;
+        case 'completed': return RustEscrowState.Released;
+        case 'disputed': return RustEscrowState.Disputed;
+        case 'cancelled': return RustEscrowState.Refunded;
+        default: return RustEscrowState.Created;
+      }
+    })();
+
+    const nextState = (() => {
+      switch (action) {
+        case 'fund': return RustEscrowState.Funded;
+        case 'release': return RustEscrowState.Released;
+        case 'dispute': return RustEscrowState.Disputed;
+      }
+    })();
+
+    try {
+      const result = await buildEscrow({
+        appTag: `escrow:${escrowId}`,
+        currentState,
+        nextState,
+        amount: escrow.totalAmount,
+      });
+
+      console.log(`[useEscrow] Rust bridge validation (${rustBridgeMode}):`, result?.checkResult);
+      return result?.checkResult || null;
+    } catch (error) {
+      console.error('[useEscrow] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [escrows, buildEscrow, rustBridgeMode]);
+
   return {
     escrows,
     selectedEscrow,
     loading,
     error,
+    rustBridgeMode,
+    rustBridgeVersion,
     createEscrow,
     selectEscrow,
     completeMilestone,
@@ -416,6 +484,7 @@ export function useEscrow(): UseEscrowReturn {
     disputeMilestone,
     refreshEscrow,
     validateEscrowSpell,
+    validateEscrowWithRustBridge,
     encryptEscrowData,
     getEncryptionStatus,
   };

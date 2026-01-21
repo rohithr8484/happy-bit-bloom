@@ -7,7 +7,7 @@
  * Encrypted with @jedisct1/charm
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
 import { 
   RustSpellChecker, 
@@ -20,6 +20,10 @@ import {
   type EncryptedBollarMint,
   bytesToHex,
 } from '@/lib/charms-wasm-sdk';
+import {
+  useRustBridge,
+  type RustCheckResult,
+} from '@/lib/rust-wasm-bridge';
 
 // Encryption key storage for Bollar mints
 const bollarEncryptionKeys = new Map<string, Uint8Array>();
@@ -111,6 +115,8 @@ export interface UseBollarReturn {
   positions: CollateralPosition[];
   stats: BollarStats;
   loading: boolean;
+  rustBridgeMode: 'http' | 'wasm' | 'loading';
+  rustBridgeVersion: string;
   
   // Actions
   mintBollar: (params: MintParams) => Promise<CollateralPosition>;
@@ -124,6 +130,7 @@ export interface UseBollarReturn {
   calculateMinBtc: (bollarCents: number) => number;
   refreshPrices: () => Promise<void>;
   validateBollarSpell: (action: 'mint' | 'redeem', inputAmount: bigint, outputAmount: bigint) => TokenCheckResult;
+  validateBollarWithRustBridge: (action: 'mint' | 'redeem', inputAmount: number, outputAmount: number) => Promise<RustCheckResult | null>;
   createEncryptedMint: (positionId: string, amount: bigint, recipient: string) => EncryptedBollarMint;
   verifyMintProof: (positionId: string) => { valid: boolean; proofHash: string } | null;
 }
@@ -132,6 +139,20 @@ export function useBollar(): UseBollarReturn {
   const [positions, setPositions] = useState<CollateralPosition[]>(DEMO_POSITIONS);
   const [loading, setLoading] = useState(false);
   const [btcPrice, setBtcPrice] = useState(BTC_PRICE_USD);
+
+  // Initialize Rust WASM/HTTP bridge
+  const { 
+    mode: rustBridgeMode, 
+    version: rustBridgeVersion, 
+    buildToken,
+    isReady: rustBridgeReady 
+  } = useRustBridge('auto');
+
+  useEffect(() => {
+    if (rustBridgeReady) {
+      console.log('[useBollar] Rust bridge ready:', { mode: rustBridgeMode, version: rustBridgeVersion });
+    }
+  }, [rustBridgeReady, rustBridgeMode, rustBridgeVersion]);
 
   const stats: BollarStats = {
     totalBtcLocked: positions.reduce((sum, p) => sum + p.btcDeposited, 0),
@@ -387,10 +408,36 @@ export function useBollar(): UseBollarReturn {
     return { valid: true, proofHash };
   }, []);
 
+  // Validate Bollar using Rust WASM/HTTP bridge
+  const validateBollarWithRustBridge = useCallback(async (
+    action: 'mint' | 'redeem',
+    inputAmount: number,
+    outputAmount: number
+  ): Promise<RustCheckResult | null> => {
+    if (!buildToken) return null;
+
+    try {
+      const result = await buildToken({
+        appTag: `token:BOLLAR`,
+        vkHash: '0'.repeat(64),
+        inputAmounts: action === 'mint' ? [inputAmount] : [outputAmount],
+        outputAmounts: action === 'mint' ? [outputAmount] : [inputAmount],
+      });
+
+      console.log(`[useBollar] Rust bridge validation (${rustBridgeMode}):`, result?.checkResult);
+      return result?.checkResult || null;
+    } catch (error) {
+      console.error('[useBollar] Rust bridge validation failed:', error);
+      return null;
+    }
+  }, [buildToken, rustBridgeMode]);
+
   return {
     positions,
     stats,
     loading,
+    rustBridgeMode,
+    rustBridgeVersion,
     mintBollar,
     redeemBollar,
     addCollateral,
@@ -400,6 +447,7 @@ export function useBollar(): UseBollarReturn {
     calculateMinBtc,
     refreshPrices,
     validateBollarSpell,
+    validateBollarWithRustBridge,
     createEncryptedMint: createEncryptedMintFn,
     verifyMintProof,
   };
