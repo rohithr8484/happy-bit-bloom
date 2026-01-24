@@ -147,6 +147,19 @@ Core dependencies include:
 
 ---
 
+## 📦 Environment Variables
+
+```bash
+VITE_SUPABASE_URL =	
+VITE_SUPABASE_PUBLISHABLE_KEY	=
+VITE_SUPABASE_PROJECT_ID	=
+Maestro_Bitcoin_API	MAESTRO_API_KEY	= 
+MAESTRO_BASE_URL = 
+UTXOS_PROJECT_ID = 
+UTXOS_API_KEY	=
+```
+
+---
 
 ## 🧪 Run app in Development Mode
 
