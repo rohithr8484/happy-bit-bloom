@@ -18,9 +18,6 @@ import { useEscrow } from "@/hooks/useEscrow";
 import { useBounty } from "@/hooks/useBounty";
 import { 
   Plus, 
-  Shield, 
-  Zap, 
-  Lock, 
   Bitcoin,
   ExternalLink,
   Coins,
@@ -29,7 +26,11 @@ import {
   BarChart3,
   Layers,
   Gem,
+  Lock,
 } from "lucide-react";
+import secureEscrowImg from "@/assets/secure-escrow.jpg";
+import oracleBountiesImg from "@/assets/oracle-bounties.jpg";
+import zkVerificationImg from "@/assets/zk-verification.jpg";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -143,22 +144,28 @@ const Index = () => {
               className="grid md:grid-cols-3 gap-6 mt-20 max-w-4xl mx-auto"
             >
               {[
-                { icon: Lock, title: "Secure Escrow", description: "Funds locked in programmable Bitcoin UTXOs with zero-knowledge proofs" },
-                { icon: Zap, title: "Oracle Bounties", description: "Outcome-based task payments verified by oracles and maintainers" },
-                { icon: Shield, title: "ZK Verification", description: "Boundless proofs for Bitcoin state with RISC Zero zkVM" },
+                { image: secureEscrowImg, title: "Secure Escrow", description: "Funds locked in programmable Bitcoin UTXOs with zero-knowledge proofs" },
+                { image: oracleBountiesImg, title: "Oracle Bounties", description: "Outcome-based task payments verified by oracles and maintainers" },
+                { image: zkVerificationImg, title: "ZK Verification", description: "Boundless proofs for Bitcoin state with RISC Zero zkVM" },
               ].map((feature, index) => (
                 <motion.div
                   key={feature.title}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
-                  className="p-6 rounded-2xl bg-card/50 border border-border hover:border-primary/30 transition-colors group"
+                  className="rounded-2xl bg-card/50 border border-border hover:border-primary/30 transition-colors group overflow-hidden"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <feature.icon className="w-6 h-6 text-primary" />
+                  <div className="h-32 overflow-hidden">
+                    <img 
+                      src={feature.image} 
+                      alt={feature.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                  <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  <div className="p-6">
+                    <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
