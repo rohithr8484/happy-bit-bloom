@@ -1,1 +1,7 @@
 project_id = "slgrfdyvjuyypdxggctk"
+
+[functions.spell-checker]
+verify_jwt = false
+
+[functions.protocol-advisor]
+verify_jwt = false

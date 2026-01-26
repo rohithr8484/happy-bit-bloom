@@ -13,6 +13,7 @@ import { ZKVerificationPanel } from "@/components/ZKVerificationPanel";
 import { BitcoinAnalyticsDashboard } from "@/components/BitcoinAnalyticsDashboard";
 import { ScrollProvingPanel } from "@/components/ScrollProvingPanel";
 import { CharmsFlowDiagram } from "@/components/CharmsFlowDiagram";
+import { ProtocolAdvisorBot } from "@/components/ProtocolAdvisorBot";
 import { Button } from "@/components/ui/button";
 import { useEscrow } from "@/hooks/useEscrow";
 import { useBounty } from "@/hooks/useBounty";
@@ -285,6 +286,9 @@ const Index = () => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Protocol Advisor AI Bot */}
+      <ProtocolAdvisorBot />
     </div>
   );
 };
