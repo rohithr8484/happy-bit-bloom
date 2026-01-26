@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Bot, 
   Send, 
@@ -14,8 +13,7 @@ import {
   Loader2,
   User,
   Sparkles,
-  X,
-  MessageCircle
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -37,18 +35,18 @@ export const ProtocolAdvisorBot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const scrollToBottom = useCallback(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -183,7 +181,10 @@ export const ProtocolAdvisorBot = () => {
               </CardHeader>
 
               <CardContent className="p-0">
-                <ScrollArea className="h-[400px] p-4" ref={scrollRef}>
+                <div 
+                  ref={scrollContainerRef}
+                  className="h-[400px] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+                >
                   {messages.length === 0 ? (
                     <div className="space-y-4">
                       <div className="text-center py-6">
@@ -256,7 +257,7 @@ export const ProtocolAdvisorBot = () => {
                       )}
                     </div>
                   )}
-                </ScrollArea>
+                </div>
 
                 <form onSubmit={handleSubmit} className="p-4 border-t border-border">
                   <div className="flex gap-2">
