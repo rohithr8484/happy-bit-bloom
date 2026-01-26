@@ -59,7 +59,7 @@ BOS CircuitForge enables milestone-based governance, and cross-chain verificatio
 - See funds **locked, released, pending, or disputed**  
 - Clear history of what happened, when, and why
 
-###✨ AI bot
+### ✨ AI bot
 - Recommendations for Escrow Setup, Bounty Design, Stablecoin Risk, and ZK Proof Type
   
 ---
