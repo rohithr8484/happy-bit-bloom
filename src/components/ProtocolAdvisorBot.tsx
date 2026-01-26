@@ -55,17 +55,30 @@ export const ProtocolAdvisorBot = () => {
   }, [isOpen]);
 
   const streamChat = async (userMessages: Message[]) => {
-    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/protocol-advisor`;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    console.log("[ProtocolAdvisor] Supabase URL:", supabaseUrl);
+    console.log("[ProtocolAdvisor] Has API Key:", !!supabaseKey);
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase configuration missing");
+    }
+    
+    const CHAT_URL = `${supabaseUrl}/functions/v1/protocol-advisor`;
+    console.log("[ProtocolAdvisor] Calling:", CHAT_URL);
 
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${supabaseKey}`,
       },
       body: JSON.stringify({ messages: userMessages }),
     });
 
+    console.log("[ProtocolAdvisor] Response status:", resp.status);
+    
     if (resp.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
@@ -73,7 +86,9 @@ export const ProtocolAdvisorBot = () => {
       throw new Error("Service temporarily unavailable.");
     }
     if (!resp.ok || !resp.body) {
-      throw new Error("Failed to connect to advisor");
+      const errorText = await resp.text().catch(() => "Unknown error");
+      console.error("[ProtocolAdvisor] Error response:", errorText);
+      throw new Error(`Failed to connect to advisor (${resp.status})`);
     }
 
     const reader = resp.body.getReader();
