@@ -11,7 +11,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
-import { 
+import { promptTestnetTransaction } from '@/lib/testnet-transactions';
+import {
   RustSpellChecker, 
   EscrowState,
   type EscrowCheckResult 
@@ -237,6 +238,11 @@ export function useBounty(): UseBountyReturn {
         spellId: `spell-${Date.now()}`,
       };
       
+      // Prompt testnet transaction
+      promptTestnetTransaction('create_bounty', {
+        amount: params.amount,
+      });
+      
       setBounties(prev => [bounty, ...prev]);
       return bounty;
     } finally {
@@ -248,6 +254,14 @@ export function useBounty(): UseBountyReturn {
     setLoading(true);
     try {
       await new Promise(r => setTimeout(r, 1000));
+      
+      const bounty = bounties.find(b => b.id === bountyId);
+      
+      // Prompt testnet transaction
+      promptTestnetTransaction('claim_bounty', {
+        amount: bounty?.amount,
+        toAddress: hunterAddress,
+      });
       
       setBounties(prev => prev.map(b => {
         if (b.id !== bountyId) return b;
@@ -261,12 +275,15 @@ export function useBounty(): UseBountyReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bounties]);
 
   const submitWork = useCallback(async (bountyId: string, proof: string) => {
     setLoading(true);
     try {
       await new Promise(r => setTimeout(r, 1000));
+      
+      // Prompt testnet transaction
+      promptTestnetTransaction('submit_work');
       
       setBounties(prev => prev.map(b => {
         if (b.id !== bountyId) return b;
@@ -310,6 +327,9 @@ export function useBounty(): UseBountyReturn {
     try {
       await new Promise(r => setTimeout(r, 1000));
       
+      // Prompt testnet transaction
+      promptTestnetTransaction('approve_bounty');
+      
       setBounties(prev => prev.map(b => {
         if (b.id !== bountyId) return b;
         return {
@@ -338,6 +358,12 @@ export function useBounty(): UseBountyReturn {
         bounty.hunter
       );
       
+      // Prompt testnet transaction
+      promptTestnetTransaction('release_bounty', {
+        amount: bounty.amount,
+        toAddress: bounty.hunter,
+      });
+      
       setBounties(prev => prev.map(b => {
         if (b.id !== bountyId) return b;
         return {
@@ -357,6 +383,9 @@ export function useBounty(): UseBountyReturn {
     setLoading(true);
     try {
       await charmsSDK.disputeMilestone(bountyId, 'bounty-dispute', reason);
+      
+      // Prompt testnet transaction
+      promptTestnetTransaction('dispute_bounty');
       
       setBounties(prev => prev.map(b => {
         if (b.id !== bountyId) return b;

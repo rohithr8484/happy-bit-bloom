@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { maestro } from '@/lib/maestro-sdk';
+import { promptTestnetTransaction } from '@/lib/testnet-transactions';
 import {
   useRustBridge,
   type RustCheckResult,
@@ -360,6 +361,9 @@ export function useZKVerification(): UseZKVerificationReturn {
       proof.verifiedAt = new Date();
       proof.gasUsed = Math.floor(80000 + Math.random() * 50000);
       proof.status = 'verified';
+      
+      // Prompt testnet transaction for ZK verification
+      promptTestnetTransaction('verify_zk_proof');
       
       setActiveProof(null);
       setProofs(prev => prev.map(p => p.id === proof.id ? { ...proof } : p));

@@ -128,10 +128,11 @@ export function EscrowDetailsPanel({
               )}
             </button>
             <a
-              href={`https://mempool.space/tx/${escrow.txid}`}
+              href={`https://mempool.space/testnet/tx/${escrow.txid}`}
               target="_blank"
               rel="noopener noreferrer"
               className="p-1 hover:bg-secondary rounded"
+              title="View on Mempool Testnet Explorer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </a>

@@ -9,7 +9,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { charmsSDK, TransactionResult } from '@/lib/charms-sdk';
-import { 
+import { promptTestnetTransaction } from '@/lib/testnet-transactions';
+import {
   RustSpellChecker, 
   type TokenCheckResult 
 } from '@/lib/rust-spell-checker';
@@ -198,6 +199,11 @@ export function useBollar(): UseBollarReturn {
         txid: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
       };
 
+      // Prompt testnet transaction
+      promptTestnetTransaction('mint_bollar', {
+        amount: params.btcAmount,
+      });
+
       setPositions(prev => [position, ...prev]);
       return position;
     } finally {
@@ -219,6 +225,11 @@ export function useBollar(): UseBollarReturn {
         position.btcDeposited,
         'connected-wallet'
       );
+
+      // Prompt testnet transaction
+      promptTestnetTransaction('redeem_bollar', {
+        amount: position.btcDeposited,
+      });
 
       if (params.bollarAmount >= position.bollarMinted) {
         // Full redemption - close position
