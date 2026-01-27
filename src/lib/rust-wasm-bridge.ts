@@ -1,10 +1,32 @@
 /**
- * Rust WASM Bridge - TypeScript integration for Rust spell checker via WASM
+ * Rust WASM Bridge - Unified TypeScript integration for all Charms Rust modules
  * 
- * This module provides both:
- * 1. HTTP API client for the spell-checker edge function (backend)
- * 2. WASM loader for direct Rust execution in browser (frontend)
+ * This module provides:
+ * 1. HTTP API client for the spell-checker edge function (charms-data, charms-sdk, charmix)
+ * 2. WASM loader for direct Rust execution in browser
+ * 3. TypeScript fallback using charms-modules.ts
+ * 
+ * Automatically selects the best available provider: WASM → HTTP → TypeScript
  */
+
+import {
+  CharmsModules,
+  CharmsData,
+  CharmsSDK,
+  Charmix,
+  CharmsBuilders,
+  EscrowState,
+  BountyState,
+  type DataType,
+  type App,
+  type Transaction,
+  type NormalizedSpell,
+  type CheckResult,
+} from './charms-modules';
+
+// Re-export for convenience
+export { CharmsModules, CharmsData, CharmsSDK, Charmix, CharmsBuilders, EscrowState, BountyState };
+export type { DataType, App, Transaction, NormalizedSpell, CheckResult };
 
 // Lazy import to avoid initialization issues with env variables
 const getSupabase = async () => {
@@ -13,7 +35,7 @@ const getSupabase = async () => {
 };
 
 // ============================================
-// Shared Types (matching Rust charms-data)
+// HTTP API Types (matching edge function)
 // ============================================
 
 export interface RustApp {
@@ -77,7 +99,7 @@ export interface RustNormalizedSpell {
 
 export interface RustCheckResult {
   valid: boolean;
-  spellType: 'token' | 'nft' | 'escrow' | 'unknown';
+  spellType: 'token' | 'nft' | 'escrow' | 'bounty' | 'bollar' | 'unknown';
   details: {
     inputSum?: number;
     outputSum?: number;
@@ -100,8 +122,16 @@ export enum RustEscrowState {
   Refunded = 4,
 }
 
+export enum RustBountyState {
+  Open = 0,
+  InProgress = 1,
+  Completed = 2,
+  Cancelled = 3,
+  Disputed = 4,
+}
+
 // ============================================
-// HTTP API Client (Backend Style)
+// HTTP API Client (Unified for all modules)
 // ============================================
 
 export class RustHttpClient {
@@ -117,12 +147,12 @@ export class RustHttpClient {
   }
   
   /**
-   * Check health of the spell-checker API
+   * Get API health and module info
    */
   async health(): Promise<{
     status: string;
-    version: string;
-    rustBridge: string;
+    versions: { charmsData: string; charmsSDK: string; charmix: string; api: string };
+    modules: string[];
     supportedTypes: string[];
   }> {
     const supabase = await getSupabase();
@@ -135,82 +165,63 @@ export class RustHttpClient {
   }
   
   /**
-   * Check a spell via HTTP API (mirrors Rust charmix::check)
+   * Get version info for all modules
    */
-  async checkSpell(
-    app: RustApp,
-    tx: RustTransaction,
-    x: RustData = { type: 'empty' },
-    w: RustData = { type: 'empty' }
-  ): Promise<RustCheckResult> {
+  async getVersions(): Promise<{ charmsData: string; charmsSDK: string; charmix: string; api: string }> {
     const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
-      body: {
-        action: 'check',
-        app,
-        tx,
-        x,
-        w,
-      },
+      body: { module: 'data', action: 'version' },
     });
     
     if (error) throw error;
-    return data;
-  }
-  
-  /**
-   * Build and check a token transaction
-   */
-  async buildToken(params: {
-    appTag: string;
-    vkHash: string;
-    inputAmounts: number[];
-    outputAmounts: number[];
-  }): Promise<{
-    app: RustApp;
-    tx: RustTransaction;
-    checkResult: RustCheckResult;
-  }> {
-    const supabase = await getSupabase();
-    const { data, error } = await supabase.functions.invoke('spell-checker', {
-      body: {
-        action: 'build_token',
-        params,
-      },
+    
+    // Get all versions
+    const sdkResp = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'sdk', action: 'version' },
+    });
+    const charmixResp = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'version' },
     });
     
-    if (error) throw error;
-    return data;
+    return {
+      charmsData: data.version,
+      charmsSDK: sdkResp.data?.version ?? 'unknown',
+      charmix: charmixResp.data?.version ?? 'unknown',
+      api: '2.0.0',
+    };
   }
+
+  // ========== CHARMS-DATA Module ==========
   
-  /**
-   * Build and check an escrow transaction
-   */
-  async buildEscrow(params: {
-    appTag: string;
-    currentState?: RustEscrowState;
-    nextState: RustEscrowState;
-    amount: number;
-  }): Promise<{
-    app: RustApp;
-    tx: RustTransaction;
-    checkResult: RustCheckResult;
-  }> {
+  async createData(type: 'empty' | 'bool' | 'u64' | 'i64' | 'bytes' | 'string', value?: unknown): Promise<RustData> {
     const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
-      body: {
-        action: 'build_escrow',
-        params,
-      },
+      body: { module: 'data', action: `create_${type}`, value },
     });
-    
     if (error) throw error;
-    return data;
+    return data.data;
   }
   
-  /**
-   * Verify a normalized spell structure
-   */
+  async validateCharmState(state: unknown): Promise<boolean> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'data', action: 'validate_charm_state', data: state },
+    });
+    if (error) throw error;
+    return data.valid;
+  }
+  
+  async validateTransaction(tx: unknown): Promise<boolean> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'data', action: 'validate_transaction', tx },
+    });
+    if (error) throw error;
+    return data.valid;
+  }
+
+  // ========== CHARMS-SDK Module ==========
+  
   async verifySpell(spell: RustNormalizedSpell): Promise<{
     valid: boolean;
     version: number;
@@ -220,12 +231,133 @@ export class RustHttpClient {
   }> {
     const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
-      body: {
-        action: 'verify_spell',
-        spell,
-      },
+      body: { module: 'sdk', action: 'verify_spell', spell },
     });
-    
+    if (error) throw error;
+    return data;
+  }
+  
+  async createApp(tag: string, vkHash: string, params?: RustData): Promise<RustApp> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'sdk', action: 'create_app', params: { tag, vk_hash: vkHash, params } },
+    });
+    if (error) throw error;
+    return data.app;
+  }
+
+  // ========== CHARMIX Module ==========
+  
+  async checkSpell(
+    app: RustApp,
+    tx: RustTransaction,
+    x: RustData = { type: 'empty' },
+    w: RustData = { type: 'empty' }
+  ): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check', app, tx, x, w },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async checkToken(app: RustApp, tx: RustTransaction, x?: RustData): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check_token', app, tx, x: x ?? { type: 'empty' } },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async checkNft(app: RustApp, tx: RustTransaction, x?: RustData): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check_nft', app, tx, x: x ?? { type: 'empty' } },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async checkEscrow(app: RustApp, tx: RustTransaction): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check_escrow', app, tx },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async checkBounty(app: RustApp, tx: RustTransaction): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check_bounty', app, tx },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async checkBollar(app: RustApp, tx: RustTransaction, x?: RustData): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'check_bollar', app, tx, x: x ?? { type: 'empty' } },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async buildToken(params: {
+    appTag: string;
+    vkHash: string;
+    inputAmounts: number[];
+    outputAmounts: number[];
+  }): Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult }> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'build_token', params },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async buildEscrow(params: {
+    appTag: string;
+    currentState?: RustEscrowState;
+    nextState: RustEscrowState;
+    amount: number;
+  }): Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult }> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'build_escrow', params },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async buildBounty(params: {
+    appTag: string;
+    currentState?: RustBountyState;
+    nextState: RustBountyState;
+    amount: number;
+  }): Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult }> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'build_bounty', params },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async buildNft(params: {
+    appTag: string;
+    inputNfts: string[];
+    outputNfts: string[];
+  }): Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult }> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'build_nft', params },
+    });
     if (error) throw error;
     return data;
   }
@@ -254,6 +386,8 @@ export interface RustWasmModule {
   check_bounty?(app_json: string, tx_json: string, x_json: string): unknown;
   check_bollar?(app_json: string, tx_json: string, x_json: string): unknown;
   build_escrow_tx?(app_tag: string, current_state: number | null, next_state: number, amount: number): unknown;
+  build_bounty_tx?(app_tag: string, current_state: number | null, next_state: number, amount: number): unknown;
+  build_nft_tx?(app_tag: string, input_nfts_json: string, output_nfts_json: string): unknown;
   get_charmix_version?(): string;
   
   // Data builders from charms-data
@@ -266,7 +400,7 @@ export interface RustWasmModule {
 }
 
 // ============================================
-// WASM Loader (Frontend Style)
+// WASM Loader (with TypeScript Fallback via CharmsModules)
 // ============================================
 
 import {
@@ -279,16 +413,15 @@ import {
 
 let wasmModule: RustWasmModule | null = null;
 let wasmLoading: Promise<RustWasmModule> | null = null;
+let usingFallback = false;
 
 /**
  * Load the Rust WASM module
  * 
  * Build the module with:
- * cd src/rust/charms-sdk && wasm-pack build --target web --out-dir ../../../public/wasm/charms-sdk --features wasm
+ * cd src/rust/charms-sdk && wasm-pack build --target web --features wasm
  * 
- * Expected structure in /public/wasm/charms-sdk/:
- * - charms_sdk.js (ES module glue)
- * - charms_sdk_bg.wasm (WebAssembly binary)
+ * Falls back to CharmsModules TypeScript implementation if WASM unavailable.
  */
 export async function loadRustWasm(): Promise<RustWasmModule> {
   // Return cached module
@@ -311,24 +444,32 @@ export async function loadRustWasm(): Promise<RustWasmModule> {
       
       // Try to load via the dedicated loader
       const charmsWasm = await loadCharmsWasm({
-        basePath: '/wasm/charms-sdk',
+        basePath: '/src/rust/charms-sdk/pkg',
         timeout: 15000,
       });
       
       wasmModule = charmsWasm as unknown as RustWasmModule;
-      console.log('[RustWasm] Loaded WASM via charms-wasm-loader, version:', wasmModule.get_version());
+      console.log('[RustWasm] Loaded WASM, version:', wasmModule.get_version());
       return wasmModule;
     } catch (error) {
-      console.warn('[RustWasm] WASM load failed, using TypeScript fallback:', error);
+      console.warn('[RustWasm] WASM load failed, using CharmsModules fallback:', error);
       console.log('[RustWasm] Status:', getWasmStatus());
       
-      // Fall back to TypeScript implementation
+      // Fall back to TypeScript implementation using CharmsModules
+      usingFallback = true;
       wasmModule = createFallbackModule();
       return wasmModule;
     }
   })();
   
   return wasmLoading;
+}
+
+/**
+ * Check if using TypeScript fallback instead of WASM
+ */
+export function isUsingFallback(): boolean {
+  return usingFallback;
 }
 
 /**
@@ -619,27 +760,27 @@ function createFallbackModule(): RustWasmModule {
     },
     
     get_version(): string {
-      return '0.10.0-ts-fallback';
+      return `${CharmsModules.versions.sdk}-ts-fallback`;
     },
     
     get_charmix_version(): string {
-      return '0.1.0-ts-fallback';
+      return `${CharmsModules.versions.charmix}-ts-fallback`;
     },
     
     get_data_version(): string {
-      return '0.10.0-ts-fallback';
+      return `${CharmsModules.versions.data}-ts-fallback`;
     },
     
     create_empty_data(): string {
-      return '{"type":"Empty"}';
+      return JSON.stringify({ type: 'empty' });
     },
     
     create_u64_data(value: number): string {
-      return `{"type":"U64","value":${value}}`;
+      return JSON.stringify({ type: 'u64', value });
     },
     
     create_bytes_data(hex: string): string {
-      return `{"type":"Bytes","value":"${hex}"}`;
+      return JSON.stringify({ type: 'bytes', value: hex });
     },
     
     validate_charm_state(json: string): boolean {
@@ -658,6 +799,62 @@ function createFallbackModule(): RustWasmModule {
       } catch {
         return false;
       }
+    },
+    
+    // Additional builders using CharmsBuilders
+    build_bounty_tx(app_tag: string, current_state: number | null, next_state: number, amount: number): unknown {
+      const app: RustApp = { tag: app_tag, vk_hash: '0'.repeat(64) };
+      
+      const inputs: RustTxInput[] = current_state !== null ? [{
+        utxo_ref: { txid: '0'.repeat(64), vout: 0 },
+        charm_state: {
+          apps: { [app_tag]: { type: 'u64' as const, value: current_state } },
+        },
+      }] : [];
+      
+      const outputs: RustTxOutput[] = [{
+        index: 0,
+        value: amount,
+        script_pubkey: '0014',
+        charm_state: {
+          apps: { [app_tag]: { type: 'u64' as const, value: next_state } },
+        },
+      }];
+      
+      const tx: RustTransaction = {
+        txid: '0'.repeat(64),
+        inputs,
+        outputs,
+      };
+      
+      return { app, tx };
+    },
+    
+    build_nft_tx(app_tag: string, input_nfts_json: string, output_nfts_json: string): unknown {
+      const inputNfts: string[] = JSON.parse(input_nfts_json);
+      const outputNfts: string[] = JSON.parse(output_nfts_json);
+      
+      const app: RustApp = { tag: app_tag, vk_hash: '0'.repeat(64) };
+      
+      const tx: RustTransaction = {
+        txid: '0'.repeat(64),
+        inputs: inputNfts.map((nftId, i) => ({
+          utxo_ref: { txid: '0'.repeat(64), vout: i },
+          charm_state: {
+            apps: { [app_tag]: { type: 'bytes' as const, value: nftId } },
+          },
+        })),
+        outputs: outputNfts.map((nftId, i) => ({
+          index: i,
+          value: 546,
+          script_pubkey: '0014',
+          charm_state: {
+            apps: { [app_tag]: { type: 'bytes' as const, value: nftId } },
+          },
+        })),
+      };
+      
+      return { app, tx };
     },
   };
 }
