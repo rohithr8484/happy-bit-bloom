@@ -5,7 +5,8 @@ import {
   Milestone,
   TransactionResult 
 } from '@/lib/charms-sdk';
-import { 
+import { promptTestnetTransaction, getMempoolTxUrl } from '@/lib/testnet-transactions';
+import {
   RustSpellChecker, 
   EscrowState,
   type EscrowCheckResult 
@@ -169,6 +170,14 @@ export function useEscrow(): UseEscrowReturn {
         expiresAt: params.expiresAt,
       });
 
+      // Prompt testnet transaction and show in mempool explorer
+      const totalAmount = params.milestones.reduce((sum, m) => sum + m.amount, 0);
+      promptTestnetTransaction('create_escrow', {
+        amount: totalAmount,
+        fromAddress: params.payerAddress,
+        toAddress: params.payeeAddress,
+      });
+
       setEscrows(prev => [escrow, ...prev]);
       return escrow;
     } catch (err) {
@@ -199,6 +208,15 @@ export function useEscrow(): UseEscrowReturn {
 
     try {
       await charmsSDK.completeMilestone(escrowId, milestoneId, proof);
+
+      // Find milestone amount for transaction prompt
+      const escrow = escrows.find(e => e.id === escrowId);
+      const milestone = escrow?.milestones.find(m => m.id === milestoneId);
+
+      // Prompt testnet transaction
+      promptTestnetTransaction('complete_milestone', {
+        amount: milestone?.amount,
+      });
 
       setEscrows(prev => prev.map(escrow => {
         if (escrow.id !== escrowId) return escrow;
@@ -240,7 +258,7 @@ export function useEscrow(): UseEscrowReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [escrows]);
 
   const releaseMilestone = useCallback(async (
     escrowId: string,
@@ -263,6 +281,12 @@ export function useEscrow(): UseEscrowReturn {
         milestone.amount,
         escrow.payee
       );
+
+      // Prompt testnet transaction for fund release
+      promptTestnetTransaction('release_milestone', {
+        amount: milestone.amount,
+        toAddress: escrow.payee,
+      });
 
       setEscrows(prev => prev.map(e => {
         if (e.id !== escrowId) return e;
@@ -306,6 +330,9 @@ export function useEscrow(): UseEscrowReturn {
 
     try {
       await charmsSDK.disputeMilestone(escrowId, milestoneId, reason);
+
+      // Prompt testnet transaction for dispute
+      promptTestnetTransaction('dispute_milestone');
 
       setEscrows(prev => prev.map(escrow => {
         if (escrow.id !== escrowId) return escrow;

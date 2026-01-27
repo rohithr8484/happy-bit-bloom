@@ -202,7 +202,8 @@ export function BountyDetailsPanel({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => window.open(`https://mempool.space/tx/${bounty.txid}`, '_blank')}
+              onClick={() => window.open(`https://mempool.space/testnet/tx/${bounty.txid}`, '_blank')}
+              title="View on Mempool Testnet Explorer"
             >
               <ExternalLink className="w-4 h-4" />
             </Button>

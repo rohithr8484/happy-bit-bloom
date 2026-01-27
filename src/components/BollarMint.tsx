@@ -447,7 +447,8 @@ function PositionCard({ position }: { position: CollateralPosition }) {
           variant="ghost"
           size="icon"
           className="h-6 w-6"
-          onClick={() => window.open(`https://mempool.space/tx/${position.txid}`, '_blank')}
+          onClick={() => window.open(`https://mempool.space/testnet/tx/${position.txid}`, '_blank')}
+          title="View on Mempool Testnet Explorer"
         >
           <ExternalLink className="w-3 h-3" />
         </Button>
