@@ -201,17 +201,21 @@ npm run lint
 
 cd src/rust
 
-# charmix 
+# charmix
+cargo install --locked charms
 cargo run -p charmix
 cargo build -p charmix
 cargo build -p charmix --release
 ./target/release/charmix
 
-# charms-data 
+
+# charms-data
+cargo install --locked charms
 cargo build -p charms-data
 cargo test -p charms-data
 
-# charms-sdk 
+# charms-sdk
+cargo install --locked charms
 cargo build -p charms-sdk
 cargo test -p charms-sdk
 
