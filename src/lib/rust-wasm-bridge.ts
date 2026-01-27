@@ -269,6 +269,14 @@ export interface RustWasmModule {
 // WASM Loader (Frontend Style)
 // ============================================
 
+import {
+  loadCharmsWasm,
+  isWasmLoaded,
+  getWasmModule,
+  getWasmStatus,
+  type CharmsWasmExports,
+} from './charms-wasm-loader';
+
 let wasmModule: RustWasmModule | null = null;
 let wasmLoading: Promise<RustWasmModule> | null = null;
 
@@ -276,43 +284,57 @@ let wasmLoading: Promise<RustWasmModule> | null = null;
  * Load the Rust WASM module
  * 
  * Build the module with:
- * cd src/rust/charms-sdk && wasm-pack build --target web --features wasm
+ * cd src/rust/charms-sdk && wasm-pack build --target web --out-dir ../../../public/wasm/charms-sdk --features wasm
+ * 
+ * Expected structure in /public/wasm/charms-sdk/:
+ * - charms_sdk.js (ES module glue)
+ * - charms_sdk_bg.wasm (WebAssembly binary)
  */
 export async function loadRustWasm(): Promise<RustWasmModule> {
+  // Return cached module
   if (wasmModule) return wasmModule;
   
+  // Return existing loading promise
   if (wasmLoading) return wasmLoading;
   
   wasmLoading = (async () => {
     try {
-      // Try to load pre-built WASM from public folder
-      const wasmUrl = '/wasm/charms_sdk.wasm';
-      const response = await fetch(wasmUrl);
-      
-      if (!response.ok) {
-        console.warn('[RustWasm] WASM not available, using TypeScript fallback');
-        return createFallbackModule();
+      // Check if already loaded via charms-wasm-loader
+      if (isWasmLoaded()) {
+        const loaded = getWasmModule();
+        if (loaded) {
+          wasmModule = loaded as unknown as RustWasmModule;
+          console.log('[RustWasm] Using pre-loaded WASM module');
+          return wasmModule;
+        }
       }
       
-      const wasmBytes = await response.arrayBuffer();
-      const wasmResult = await WebAssembly.instantiate(wasmBytes, {
-        env: {
-          // Minimal environment for Rust WASM
-          abort: () => console.error('WASM abort called'),
-        },
+      // Try to load via the dedicated loader
+      const charmsWasm = await loadCharmsWasm({
+        basePath: '/wasm/charms-sdk',
+        timeout: 15000,
       });
       
-      wasmModule = wasmResult.instance.exports as unknown as RustWasmModule;
-      console.log('[RustWasm] Loaded Rust WASM module');
+      wasmModule = charmsWasm as unknown as RustWasmModule;
+      console.log('[RustWasm] Loaded WASM via charms-wasm-loader, version:', wasmModule.get_version());
       return wasmModule;
     } catch (error) {
-      console.warn('[RustWasm] Failed to load WASM, using TypeScript fallback:', error);
-      return createFallbackModule();
+      console.warn('[RustWasm] WASM load failed, using TypeScript fallback:', error);
+      console.log('[RustWasm] Status:', getWasmStatus());
+      
+      // Fall back to TypeScript implementation
+      wasmModule = createFallbackModule();
+      return wasmModule;
     }
   })();
   
   return wasmLoading;
 }
+
+/**
+ * Re-export WASM status utilities
+ */
+export { isWasmLoaded, getWasmStatus } from './charms-wasm-loader';
 
 /**
  * TypeScript fallback that mirrors Rust WASM API
