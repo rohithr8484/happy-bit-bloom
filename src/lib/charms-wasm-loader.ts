@@ -66,19 +66,29 @@ let loadError: Error | null = null;
 // ============================================
 
 export interface WasmLoaderConfig {
-  /** Base path for WASM files (default: '/wasm/charms-sdk') */
+  /** Base path for WASM files (default: '/src/rust/charms-sdk/pkg') */
   basePath?: string;
   /** Whether to use streaming instantiation (default: true) */
   streaming?: boolean;
   /** Timeout in ms (default: 10000) */
   timeout?: number;
+  /** Module name (charms-sdk, charms-data, charmix) */
+  module?: 'charms-sdk' | 'charms-data' | 'charmix';
 }
 
 const DEFAULT_CONFIG: Required<WasmLoaderConfig> = {
-  basePath: '/wasm/charms-sdk',
+  basePath: '/src/rust/charms-sdk/pkg',
   streaming: true,
   timeout: 10000,
+  module: 'charms-sdk',
 };
+
+// Module-specific paths
+export const WASM_PATHS = {
+  'charms-sdk': '/src/rust/charms-sdk/pkg',
+  'charms-data': '/src/rust/charms-data/pkg',
+  'charmix': '/src/rust/charmix/pkg',
+} as const;
 
 // ============================================
 // Load Functions
