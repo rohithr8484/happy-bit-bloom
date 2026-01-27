@@ -198,7 +198,7 @@ export function useZKVerification(): UseZKVerificationReturn {
   const { 
     mode: rustBridgeMode, 
     version: rustBridgeVersion, 
-    verifySpark,
+    validateZKProof: rustValidateZKProof,
     isReady: rustBridgeReady 
   } = useRustBridge('auto');
 
@@ -415,48 +415,27 @@ export function useZKVerification(): UseZKVerificationReturn {
     return PROOF_CONFIGS[type].estimatedCost;
   }, []);
 
-  // Validate ZK proof using Rust WASM/HTTP bridge
+  // Validate ZK proof using Rust HTTP API with dedicated endpoint
   const validateProofWithRustBridge = useCallback(async (proof: ZKProof): Promise<RustCheckResult | null> => {
-    if (!verifySpark) return null;
+    if (!rustValidateZKProof) return null;
 
     try {
-      // Build a spell structure for ZK proof validation
-      const spell = {
-        version: 2,
-        apps: { '$zk': { vkHash: proof.verificationKey, namespace: 'zk_verification' } },
-        ins: [{ txid: proof.inputHash.slice(2, 66).padEnd(64, '0'), vout: 0 }],
-        outs: [{
-          value: 0,
-          script: 'OP_RETURN',
-          charms: [{
-            appVkHash: proof.verificationKey,
-            state: {
-              proofType: proof.type,
-              status: proof.status,
-              verified: proof.status === 'verified',
-              journalHash: proof.journalHash,
-            },
-          }],
-        }],
-      };
-
-      const result = await verifySpark(spell);
-      console.log(`[useZKVerification] Rust bridge validation (${rustBridgeMode}):`, result);
+      const result = await rustValidateZKProof({
+        proofType: proof.type,
+        inputHash: proof.inputHash,
+        outputHash: proof.outputHash,
+        proofData: proof.proofData,
+        verificationKey: proof.verificationKey,
+      });
       
-      return {
-        valid: result?.valid || false,
-        spellType: 'token',
-        details: {
-          inputSum: result?.inputCount || 0,
-          outputSum: result?.outputCount || 0,
-        },
-        errors: result?.errors || [],
-      };
+      console.log(`[useZKVerification] Rust HTTP API ZK validation (${rustBridgeMode}):`, result);
+      
+      return result;
     } catch (error) {
-      console.error('[useZKVerification] Rust bridge validation failed:', error);
+      console.error('[useZKVerification] Rust HTTP API validation failed:', error);
       return null;
     }
-  }, [verifySpark, rustBridgeMode]);
+  }, [rustValidateZKProof, rustBridgeMode]);
 
   return {
     proofs,

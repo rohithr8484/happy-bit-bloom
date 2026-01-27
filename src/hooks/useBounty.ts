@@ -25,7 +25,6 @@ import {
 } from '@/lib/charms-wasm-sdk';
 import {
   useRustBridge,
-  RustEscrowState,
   type RustCheckResult,
 } from '@/lib/rust-wasm-bridge';
 
@@ -205,7 +204,7 @@ export function useBounty(): UseBountyReturn {
   const { 
     mode: rustBridgeMode, 
     version: rustBridgeVersion, 
-    buildEscrow,
+    buildBounty,
     isReady: rustBridgeReady 
   } = useRustBridge('auto');
 
@@ -491,51 +490,52 @@ export function useBounty(): UseBountyReturn {
     return bytesToHex(crypto.hash(data));
   }, []);
 
-  // Validate bounty using Rust WASM/HTTP bridge
+  // Validate bounty using Rust WASM/HTTP bridge with dedicated bounty endpoint
   const validateBountyWithRustBridge = useCallback(async (
     bountyId: string,
     action: 'claim' | 'release' | 'refund'
   ): Promise<RustCheckResult | null> => {
     const bounty = bounties.find(b => b.id === bountyId);
-    if (!bounty || !buildEscrow) return null;
+    if (!bounty || !buildBounty) return null;
 
-    // Map bounty status to escrow states
+    // Map bounty status to bounty states
     const currentState = (() => {
       switch (bounty.status) {
-        case 'open': return RustEscrowState.Created;
+        case 'open': return 0; // RustBountyState.Open
         case 'claimed':
-        case 'submitted': return RustEscrowState.Funded;
+        case 'submitted': return 1; // RustBountyState.InProgress
         case 'approved':
-        case 'completed': return RustEscrowState.Released;
-        case 'disputed': return RustEscrowState.Disputed;
-        case 'refunded': return RustEscrowState.Refunded;
-        default: return RustEscrowState.Created;
+        case 'completed': return 2; // RustBountyState.Completed
+        case 'disputed': return 4; // RustBountyState.Disputed
+        case 'refunded':
+        case 'expired': return 3; // RustBountyState.Cancelled
+        default: return 0;
       }
     })();
 
     const nextState = (() => {
       switch (action) {
-        case 'claim': return RustEscrowState.Funded;
-        case 'release': return RustEscrowState.Released;
-        case 'refund': return RustEscrowState.Refunded;
+        case 'claim': return 1; // InProgress
+        case 'release': return 2; // Completed
+        case 'refund': return 3; // Cancelled
       }
     })();
 
     try {
-      const result = await buildEscrow({
+      const result = await buildBounty({
         appTag: `bounty:${bountyId}`,
         currentState,
         nextState,
         amount: bounty.amount,
       });
 
-      console.log(`[useBounty] Rust bridge validation (${rustBridgeMode}):`, result?.checkResult);
+      console.log(`[useBounty] Rust HTTP API bounty validation (${rustBridgeMode}):`, result?.checkResult);
       return result?.checkResult || null;
     } catch (error) {
-      console.error('[useBounty] Rust bridge validation failed:', error);
+      console.error('[useBounty] Rust HTTP API validation failed:', error);
       return null;
     }
-  }, [bounties, buildEscrow, rustBridgeMode]);
+  }, [bounties, buildBounty, rustBridgeMode]);
 
   return {
     bounties,

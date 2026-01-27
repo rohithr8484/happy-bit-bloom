@@ -599,6 +599,168 @@ function buildNftTransaction(params: {
 }
 
 // ============================================
+// ZK Proof Validation
+// ============================================
+
+function validateZKProof(params: {
+  proofType: string;
+  inputHash: string;
+  outputHash: string;
+  proofData: string;
+  verificationKey: string;
+}): CheckResult {
+  const errors: string[] = [];
+  
+  // Validate proof structure
+  if (!params.inputHash || params.inputHash.length < 64) {
+    errors.push('Invalid input hash');
+  }
+  if (!params.outputHash || params.outputHash.length < 64) {
+    errors.push('Invalid output hash');
+  }
+  if (!params.proofData || params.proofData.length < 10) {
+    errors.push('Invalid proof data');
+  }
+  if (!params.verificationKey || params.verificationKey.length < 10) {
+    errors.push('Invalid verification key');
+  }
+  
+  // Validate proof type
+  const validProofTypes = ['utxo_ownership', 'balance_threshold', 'transaction_inclusion', 'state_transition', 'collateral_ratio'];
+  if (!validProofTypes.includes(params.proofType)) {
+    errors.push(`Unknown proof type: ${params.proofType}`);
+  }
+  
+  // Simulate RISC Zero proof verification
+  const isValidProofFormat = params.proofData.startsWith('risc0_seal_v1_');
+  if (!isValidProofFormat && errors.length === 0) {
+    // Allow other formats but log
+    console.log(`[spell-checker] Non-RISC0 proof format: ${params.proofData.slice(0, 20)}`);
+  }
+  
+  return {
+    valid: errors.length === 0,
+    spellType: 'unknown',
+    details: {
+      inputSum: 1,
+      outputSum: 1,
+    },
+    errors,
+  };
+}
+
+// ============================================
+// Bitcoin Address Validation
+// ============================================
+
+function validateBitcoinAddress(address: string): { valid: boolean; type: string; errors: string[] } {
+  const errors: string[] = [];
+  let type = 'unknown';
+  
+  if (!address || address.length < 26) {
+    errors.push('Address too short');
+    return { valid: false, type, errors };
+  }
+  
+  // P2PKH (Legacy) - starts with 1
+  if (address.startsWith('1')) {
+    type = 'P2PKH';
+    if (address.length < 26 || address.length > 35) {
+      errors.push('Invalid P2PKH address length');
+    }
+  }
+  // P2SH - starts with 3
+  else if (address.startsWith('3')) {
+    type = 'P2SH';
+    if (address.length < 26 || address.length > 35) {
+      errors.push('Invalid P2SH address length');
+    }
+  }
+  // Native SegWit (Bech32) - starts with bc1q or tb1q
+  else if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
+    type = 'P2WPKH';
+    if (address.length !== 42 && address.length !== 62) {
+      errors.push('Invalid Bech32 address length');
+    }
+  }
+  // Taproot (Bech32m) - starts with bc1p or tb1p
+  else if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
+    type = 'P2TR';
+    if (address.length !== 62) {
+      errors.push('Invalid Taproot address length');
+    }
+  }
+  // Testnet legacy - starts with m or n
+  else if (address.startsWith('m') || address.startsWith('n')) {
+    type = 'P2PKH_TESTNET';
+    if (address.length < 26 || address.length > 35) {
+      errors.push('Invalid testnet address length');
+    }
+  }
+  // Testnet P2SH - starts with 2
+  else if (address.startsWith('2')) {
+    type = 'P2SH_TESTNET';
+    if (address.length < 26 || address.length > 35) {
+      errors.push('Invalid testnet P2SH address length');
+    }
+  }
+  else {
+    errors.push('Unrecognized address format');
+  }
+  
+  return { valid: errors.length === 0, type, errors };
+}
+
+// ============================================
+// Transaction Validation
+// ============================================
+
+function validateTransactionId(txid: string): CheckResult {
+  const errors: string[] = [];
+  
+  if (!txid || txid.length !== 64) {
+    errors.push('Transaction ID must be 64 hex characters');
+  }
+  
+  if (txid && !/^[a-fA-F0-9]{64}$/.test(txid)) {
+    errors.push('Transaction ID must be valid hexadecimal');
+  }
+  
+  return {
+    valid: errors.length === 0,
+    spellType: 'token',
+    details: {},
+    errors,
+  };
+}
+
+// ============================================
+// UTXO Validation
+// ============================================
+
+function validateUTXO(txid: string, vout: number): CheckResult {
+  const errors: string[] = [];
+  
+  if (!txid || txid.length !== 64) {
+    errors.push('Transaction ID must be 64 hex characters');
+  }
+  
+  if (vout < 0 || vout > 65535) {
+    errors.push('Output index must be between 0 and 65535');
+  }
+  
+  return {
+    valid: errors.length === 0,
+    spellType: 'token',
+    details: {
+      inputSum: vout >= 0 ? 1 : 0,
+      outputSum: 1,
+    },
+    errors,
+  };
+}
+
+// ============================================
 // HTTP Request Handler
 // ============================================
 
@@ -620,6 +782,11 @@ interface APIRequest {
   // Data module specific
   data?: DataType;
   value?: unknown;
+  
+  // New validation fields
+  txid?: string;
+  vout?: number;
+  address?: string;
 }
 
 serve(async (req) => {
@@ -652,7 +819,7 @@ serve(async (req) => {
         return jsonResponse({
           'charms-data': {
             version: VERSIONS.charmsData,
-            actions: ['create_empty', 'create_u64', 'create_bytes', 'create_string', 'validate_charm_state', 'validate_transaction'],
+            actions: ['create_empty', 'create_u64', 'create_bytes', 'create_string', 'validate_charm_state', 'validate_transaction', 'validate_tx', 'validate_address', 'validate_utxo'],
           },
           'charms-sdk': {
             version: VERSIONS.charmsSDK,
@@ -660,7 +827,7 @@ serve(async (req) => {
           },
           'charmix': {
             version: VERSIONS.charmix,
-            actions: ['check', 'check_token', 'check_nft', 'check_escrow', 'check_bounty', 'check_bollar', 'build_token', 'build_escrow', 'build_bounty', 'build_nft'],
+            actions: ['check', 'check_token', 'check_nft', 'check_escrow', 'check_bounty', 'check_bollar', 'build_token', 'build_escrow', 'build_bounty', 'build_nft', 'validate_zk_proof'],
           },
         });
       }
@@ -692,6 +859,18 @@ serve(async (req) => {
             return jsonResponse({ valid: CharmsDataAPI.validateCharmState(body.data) });
           case 'validate_transaction':
             return jsonResponse({ valid: CharmsDataAPI.validateTransaction(body.tx) });
+          case 'validate_tx': {
+            if (!body.txid) return errorResponse('Missing txid', 400);
+            return jsonResponse(validateTransactionId(body.txid));
+          }
+          case 'validate_address': {
+            if (!body.address) return errorResponse('Missing address', 400);
+            return jsonResponse(validateBitcoinAddress(body.address));
+          }
+          case 'validate_utxo': {
+            if (!body.txid) return errorResponse('Missing txid', 400);
+            return jsonResponse(validateUTXO(body.txid, body.vout ?? 0));
+          }
           case 'version':
             return jsonResponse({ version: VERSIONS.charmsData });
           default:
@@ -785,6 +964,12 @@ serve(async (req) => {
           case 'verify_spell': {
             if (!body.spell) return errorResponse('Missing spell', 400);
             return jsonResponse(CharmsSDKAPI.verifySpell(body.spell));
+          }
+          
+          case 'validate_zk_proof': {
+            const params = body.params as { proofType: string; inputHash: string; outputHash: string; proofData: string; verificationKey: string };
+            if (!params) return errorResponse('Missing params', 400);
+            return jsonResponse(validateZKProof(params));
           }
           
           case 'version':

@@ -63,6 +63,7 @@ export interface UseMaestroReturn {
   getUTXO: (txid: string, vout: number) => Promise<UTXOInfo | null>;
   getRuneInfo: (runeId: string) => Promise<RuneInfo | null>;
   validateTransactionWithRustBridge: (txid: string) => Promise<RustCheckResult | null>;
+  validateAddressWithRustBridge: (address: string) => Promise<{ valid: boolean; type: string; errors: string[] } | null>;
   
   // Formatters
   formatSats: (sats: number) => string;
@@ -87,7 +88,8 @@ export function useMaestro(): UseMaestroReturn {
   const { 
     mode: rustBridgeMode, 
     version: rustBridgeVersion, 
-    verifySpark,
+    validateTransaction: rustValidateTransaction,
+    validateAddress: rustValidateAddress,
     isReady: rustBridgeReady 
   } = useRustBridge('auto');
 
@@ -178,36 +180,33 @@ export function useMaestro(): UseMaestroReturn {
     }).format(amount);
   }, []);
 
-  // Validate transaction using Rust WASM/HTTP bridge
+  // Validate transaction using Rust HTTP API with dedicated endpoint
   const validateTransactionWithRustBridge = useCallback(async (txid: string): Promise<RustCheckResult | null> => {
-    if (!verifySpark) return null;
+    if (!rustValidateTransaction) return null;
 
     try {
-      // Build a minimal spell structure for transaction validation
-      const spell = {
-        version: 2,
-        apps: { '$tx': { vkHash: '0'.repeat(64), namespace: 'transaction' } },
-        ins: [{ txid, vout: 0 }],
-        outs: [{ value: 0, script: 'OP_RETURN' }],
-      };
-
-      const result = await verifySpark(spell);
-      console.log(`[useMaestro] Rust bridge transaction validation (${rustBridgeMode}):`, result);
-      
-      return {
-        valid: result?.valid || false,
-        spellType: 'token',
-        details: {
-          inputSum: result?.inputCount || 0,
-          outputSum: result?.outputCount || 0,
-        },
-        errors: result?.errors || [],
-      };
+      const result = await rustValidateTransaction(txid);
+      console.log(`[useMaestro] Rust HTTP API transaction validation (${rustBridgeMode}):`, result);
+      return result;
     } catch (error) {
-      console.error('[useMaestro] Rust bridge validation failed:', error);
+      console.error('[useMaestro] Rust HTTP API validation failed:', error);
       return null;
     }
-  }, [verifySpark, rustBridgeMode]);
+  }, [rustValidateTransaction, rustBridgeMode]);
+
+  // Validate Bitcoin address using Rust HTTP API
+  const validateAddressWithRustBridge = useCallback(async (address: string): Promise<{ valid: boolean; type: string; errors: string[] } | null> => {
+    if (!rustValidateAddress) return null;
+
+    try {
+      const result = await rustValidateAddress(address);
+      console.log(`[useMaestro] Rust HTTP API address validation (${rustBridgeMode}):`, result);
+      return result;
+    } catch (error) {
+      console.error('[useMaestro] Rust HTTP API address validation failed:', error);
+      return null;
+    }
+  }, [rustValidateAddress, rustBridgeMode]);
 
   return {
     stats,
@@ -226,6 +225,7 @@ export function useMaestro(): UseMaestroReturn {
     getUTXO,
     getRuneInfo,
     validateTransactionWithRustBridge,
+    validateAddressWithRustBridge,
     formatSats,
     formatUSD,
   };

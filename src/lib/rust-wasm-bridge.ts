@@ -211,7 +211,7 @@ export class RustHttpClient {
     return data.valid;
   }
   
-  async validateTransaction(tx: unknown): Promise<boolean> {
+  async validateTransactionSchema(tx: unknown): Promise<boolean> {
     const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: { module: 'data', action: 'validate_transaction', tx },
@@ -357,6 +357,52 @@ export class RustHttpClient {
     const supabase = await getSupabase();
     const { data, error } = await supabase.functions.invoke('spell-checker', {
       body: { module: 'charmix', action: 'build_nft', params },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  // ========== ZK Proof Validation ==========
+  
+  async validateZKProof(params: {
+    proofType: string;
+    inputHash: string;
+    outputHash: string;
+    proofData: string;
+    verificationKey: string;
+  }): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'charmix', action: 'validate_zk_proof', params },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  // ========== Analytics Validation ==========
+  
+  async validateTransaction(txid: string): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'data', action: 'validate_tx', txid },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async validateAddress(address: string): Promise<{ valid: boolean; type: string; errors: string[] }> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'data', action: 'validate_address', address },
+    });
+    if (error) throw error;
+    return data;
+  }
+  
+  async validateUTXO(txid: string, vout: number): Promise<RustCheckResult> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.functions.invoke('spell-checker', {
+      body: { module: 'data', action: 'validate_utxo', txid, vout },
     });
     if (error) throw error;
     return data;
@@ -1082,6 +1128,21 @@ export interface UseRustBridgeReturn {
     nextState: RustEscrowState;
     amount: number;
   }) => Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult } | null>;
+  buildBounty: (params: {
+    appTag: string;
+    currentState?: RustBountyState;
+    nextState: RustBountyState;
+    amount: number;
+  }) => Promise<{ app: RustApp; tx: RustTransaction; checkResult: RustCheckResult } | null>;
+  validateZKProof: (params: {
+    proofType: string;
+    inputHash: string;
+    outputHash: string;
+    proofData: string;
+    verificationKey: string;
+  }) => Promise<RustCheckResult | null>;
+  validateTransaction: (txid: string) => Promise<RustCheckResult | null>;
+  validateAddress: (address: string) => Promise<{ valid: boolean; type: string; errors: string[] } | null>;
   verifySpark: (spell: Record<string, unknown>) => Promise<{
     valid: boolean;
     version?: number;
@@ -1141,6 +1202,57 @@ export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBr
     return bridge.buildEscrow(params);
   }, [bridge]);
   
+  const buildBounty = useCallback(async (params: {
+    appTag: string;
+    currentState?: RustBountyState;
+    nextState: RustBountyState;
+    amount: number;
+  }) => {
+    if (!bridge) return null;
+    try {
+      return await rustHttpClient.buildBounty(params);
+    } catch (error) {
+      console.error('[useRustBridge] buildBounty failed:', error);
+      return null;
+    }
+  }, [bridge]);
+  
+  const validateZKProof = useCallback(async (params: {
+    proofType: string;
+    inputHash: string;
+    outputHash: string;
+    proofData: string;
+    verificationKey: string;
+  }) => {
+    if (!bridge) return null;
+    try {
+      return await rustHttpClient.validateZKProof(params);
+    } catch (error) {
+      console.error('[useRustBridge] validateZKProof failed:', error);
+      return null;
+    }
+  }, [bridge]);
+  
+  const validateTransaction = useCallback(async (txid: string) => {
+    if (!bridge) return null;
+    try {
+      return await rustHttpClient.validateTransaction(txid);
+    } catch (error) {
+      console.error('[useRustBridge] validateTransaction failed:', error);
+      return null;
+    }
+  }, [bridge]);
+  
+  const validateAddress = useCallback(async (address: string) => {
+    if (!bridge) return null;
+    try {
+      return await rustHttpClient.validateAddress(address);
+    } catch (error) {
+      console.error('[useRustBridge] validateAddress failed:', error);
+      return null;
+    }
+  }, [bridge]);
+  
   const verifySpark = useCallback(async (spell: Record<string, unknown>): Promise<{
     valid: boolean;
     version?: number;
@@ -1180,6 +1292,10 @@ export function useRustBridge(preferredMode: RustBridgeMode = 'auto'): UseRustBr
     checkSpell,
     buildToken,
     buildEscrow,
+    buildBounty,
+    validateZKProof,
+    validateTransaction,
+    validateAddress,
     verifySpark,
   };
 }
