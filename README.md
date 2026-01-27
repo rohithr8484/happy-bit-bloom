@@ -202,22 +202,38 @@ npm run lint
 cd src/rust
 
 # charmix
+
 cargo install --locked charms
 cargo run -p charmix
 cargo build -p charmix
 cargo build -p charmix --release
 ./target/release/charmix
 
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+wasm-pack build --target web --features wasm
+
+
 
 # charms-data
+
 cargo install --locked charms
 cargo build -p charms-data
 cargo test -p charms-data
 
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+wasm-pack build --target web --features wasm
+
 # charms-sdk
+
 cargo install --locked charms
 cargo build -p charms-sdk
 cargo test -p charms-sdk
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+wasm-pack build --target web --features wasm
 
 ```
 ---
