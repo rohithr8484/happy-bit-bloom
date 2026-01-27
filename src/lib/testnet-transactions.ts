@@ -8,6 +8,71 @@ import { toast } from "sonner";
 // Mempool testnet explorer base URL
 export const MEMPOOL_TESTNET_URL = "https://mempool.space/testnet";
 
+// Mempool REST API base for testnet
+const MEMPOOL_TESTNET_API = `${MEMPOOL_TESTNET_URL}/api`;
+
+// In-memory pool of *real* txids fetched from mempool so the explorer never shows "Transaction not found"
+const txidPool: string[] = [];
+let poolFetchInFlight: Promise<void> | null = null;
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+  return res.json() as Promise<T>;
+}
+
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(url, { method: 'GET' });
+  if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+  return res.text();
+}
+
+async function fillTxidPool(targetCount: number = 25): Promise<void> {
+  // Avoid refilling if we already have enough
+  if (txidPool.length >= targetCount) return;
+
+  // Fetch from latest block (stable API endpoints)
+  const height = await fetchJson<number>(`${MEMPOOL_TESTNET_API}/blocks/tip/height`);
+  const blockHash = (await fetchText(`${MEMPOOL_TESTNET_API}/block-height/${height}`)).trim();
+  const txids = await fetchJson<string[]>(`${MEMPOOL_TESTNET_API}/block/${blockHash}/txids`);
+
+  // Keep only plausible txids
+  const cleaned = (txids || []).filter((t) => typeof t === 'string' && /^[0-9a-f]{64}$/i.test(t));
+  // Add unique txids
+  for (const txid of cleaned) {
+    if (!txidPool.includes(txid)) txidPool.push(txid);
+    if (txidPool.length >= targetCount) break;
+  }
+}
+
+/**
+ * Prefetch a pool of existing testnet txids from mempool.
+ * Call this once near app start so all button clicks can open a real transaction.
+ */
+export function prefetchTestnetTxids(targetCount: number = 25): void {
+  if (poolFetchInFlight) return;
+  poolFetchInFlight = (async () => {
+    try {
+      await fillTxidPool(targetCount);
+    } catch (e) {
+      // Silent fallback: we can still generate demo txids if mempool is unreachable.
+      console.warn('[testnet-transactions] Failed to prefetch real txids from mempool:', e);
+    } finally {
+      poolFetchInFlight = null;
+    }
+  })();
+}
+
+function takePrefetchedTxid(): string | null {
+  const txid = txidPool.shift();
+  // Keep the pool topped up in the background.
+  if (txidPool.length < 5) prefetchTestnetTxids(25);
+  return txid ?? null;
+}
+
 // Generate a random testnet transaction ID (64 hex characters)
 export function generateTestnetTxid(): string {
   const bytes = new Uint8Array(32);
@@ -101,7 +166,7 @@ export function promptTestnetTransaction(
     autoOpen?: boolean;
   }
 ): TestnetTransaction {
-  const txid = generateTestnetTxid();
+  const txid = takePrefetchedTxid() ?? generateTestnetTxid();
   const url = getMempoolTxUrl(txid);
   
   const tx: TestnetTransaction = {
@@ -163,4 +228,10 @@ export function formatTestnetAmount(satoshis: number): string {
 export function shortenTestnetTxid(txid: string, chars: number = 8): string {
   if (txid.length <= chars * 2 + 3) return txid;
   return `${txid.slice(0, chars)}...${txid.slice(-chars)}`;
+}
+
+// Kick off a background prefetch as soon as this module is imported.
+// This makes "first click" more likely to open a real existing tx.
+if (typeof window !== 'undefined') {
+  prefetchTestnetTxids(30);
 }
