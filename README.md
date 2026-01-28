@@ -122,6 +122,9 @@ Optional high-throughput execution or coordination layer prior to Bitcoin finali
 Manages generating and tracking chunk and batch zk-proofs for Scroll by simulating block/chunk witnesses, updating progress, and storing proof history.
 It also supports network selection, queue stats, and proof verification, exposing a clean API for UI-driven proof generation and status handling. The Scroll prover takes automatically fetched zkEVM block or chunk data and computes a zero-knowledge proof that all transactions were executed correctly and in order.
 
+<img width="745" height="371" alt="Screenshot from 2026-01-28 10-56-43" src="https://github.com/user-attachments/assets/05296ee0-4de5-4a8a-a185-179fbb1e22be" />
+
+
 ### 🔹 UTXOS.dev 
 
 A full-stack Web3 infrastructure platform with transaction sponsorship purpose-built for Bitcoin, Cardano and Spark. Bitcoin developer platform that provides tools, SDKs, and primitives to build UTXO-native applications like escrows, bounties, and programmable assets.
