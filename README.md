@@ -102,6 +102,8 @@ Charms is a library, CLI, and web API that enables programmable tokens, NFTs, an
 
 Using spells embedded in Bitcoin transactions, Charms let NFTs carry state and enforce rules—such as minting tokens only when the NFT state is correctly updated in the same transaction.
 
+#### 🔹 Implementation of Charms Protocol
+
 Charms.js (JavaScript) - To provide browser- and app-friendly cryptographic utilities to encrypt, hash, and verify data used in Charms spells and proofs.
 
 Charms ( typescript) - To implement cryptographic primitives (encrypt, decrypt, authenticate, hash) used to secure spell data, verify integrity, and safely pass inputs between users, apps, and verifiers. ZK Proving Hook generates proofs but also validates spells, verifies proofs, tracks status, and exposes metrics.
