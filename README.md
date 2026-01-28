@@ -109,6 +109,9 @@ Charms.js (JavaScript) - To provide browser- and app-friendly cryptographic util
 Charms ( typescript) - To implement cryptographic primitives (encrypt, decrypt, authenticate, hash) used to secure spell data, verify integrity, and safely pass inputs between users, apps, and verifiers. ZK Proving Hook generates proofs but also validates spells, verifies proofs, tracks status, and exposes metrics.
 
 Charms (rust) - Used for deterministic spell execution and verification, defining how Charms are created, transformed, and validated directly on Bitcoin using UTXO-based logic.
+<img width="531" height="228" alt="Screenshot from 2026-01-28 09-33-00" src="https://github.com/user-attachments/assets/76c07e08-bab1-4814-8a33-f4c083edcf03" />
+
+
 
 
 ### 🔹 Scroll
