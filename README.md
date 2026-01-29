@@ -4,7 +4,7 @@ BOS CircuitForge enables milestone-based governance, and cross-chain verificatio
 
 BOS CircuitForge application uses Charms Protocol and zero-knowledge proofs to make Bitcoin programmable by attaching verifiable logic to UTXOs—expanding Bitcoin’s functionality without changing its core security model. 
 
-<p align="left"> <img src="https://img.shields.io/badge/Encode Club%20-blue?style=flat-square" /> <img src="https://img.shields.io/badge/The BOS %20Hackathon-purple?style=flat-square" /> <img src="https://img.shields.io/badge/Charms %20Protocol-green?style=flat-square" /> <img src="https://img.shields.io/badge/UTXO blockchains-orange?style=flat-square" /> </p>
+<p align="left"> <img src="https://img.shields.io/badge/Encode Club%20-blue?style=flat-square" /> <img src="https://img.shields.io/badge/The BOS %20Hackathon-purple?style=flat-square" /> <img src="https://img.shields.io/badge/Charms %20Protocol-green?style=flat-square" /> <img src="https://img.shields.io/badge/UTXO blockchains-orange?style=flat-square" /> <img src="https://img.shields.io/badge/Privacy Tech-orange?style=flat-square" /> <img src="https://img.shields.io/badge/Governance-orange?style=flat-square" /> </p>
 
 <img width="899" height="447" alt="bitcoin" src="https://github.com/user-attachments/assets/aaaaecdb-c67e-4701-b7ec-e9670cafe41f" />
 
