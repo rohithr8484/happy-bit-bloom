@@ -88,10 +88,10 @@ const Index = () => {
   const tabs = [
     { id: 'escrows' as const, label: 'Escrows', icon: Lock },
     { id: 'bounties' as const, label: 'Bounties', icon: Target },
-    { id: 'bollar' as const, label: 'Bollar', icon: Coins },
     { id: 'zk' as const, label: 'ZK Proofs', icon: FileCheck },
     { id: 'scroll' as const, label: 'Scroll', icon: Layers },
     { id: 'charms' as const, label: 'Charms', icon: Gem },
+    { id: 'bollar' as const, label: 'Bollar', icon: Coins },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
   ];
 
