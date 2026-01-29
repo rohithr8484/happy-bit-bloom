@@ -165,10 +165,10 @@ Core dependencies include:
 
 ## On-chain transactions on mempool (Testnet):  
 
-- escrow: https://mempool.space/testnet/tx/75ddb2ded8427c6e819482ac0560be93ed8b378241178f5eebb3f973a5d1c1d5
-- bounties: https://mempool.space/testnet/tx/94d1da79729e013cc5a3044f7ef0e135d7aeac32af50fcb6f01de68d7b7a1653
-- treasury controls: https://mempool.space/testnet/tx/84867dcb9c6ee9f5af4f37919085fd450e2d250fa8dc164191fa1a6f4c4d689c
-- On-chain governance: https://mempool.space/testnet/tx/1db522b34abf7c42efd977a167b5ef6b1569410fc1cb4e7441707b1716828432
+- Escrows: https://mempool.space/testnet/tx/75ddb2ded8427c6e819482ac0560be93ed8b378241178f5eebb3f973a5d1c1d5
+- Bounties: https://mempool.space/testnet/tx/94d1da79729e013cc5a3044f7ef0e135d7aeac32af50fcb6f01de68d7b7a1653
+- ZK Proofs: https://mempool.space/testnet/tx/84867dcb9c6ee9f5af4f37919085fd450e2d250fa8dc164191fa1a6f4c4d689c
+- On-chain Spell Validation: https://mempool.space/testnet/tx/1db522b34abf7c42efd977a167b5ef6b1569410fc1cb4e7441707b1716828432
 
 ## 📦 Environment Variables
 
