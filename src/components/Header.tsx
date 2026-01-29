@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Shield, Sparkles, Github, ExternalLink, Bitcoin } from "lucide-react";
+import { Shield, Bitcoin } from "lucide-react";
 import { motion } from "framer-motion";
 import { WalletConnect } from "./WalletConnect";
 
@@ -48,14 +48,6 @@ export function Header({ className }: HeaderProps) {
             <Bitcoin className="w-4 h-4 text-primary" />
             <span className="text-sm font-mono text-muted-foreground">Testnet</span>
           </div>
-          <a
-            href="https://github.com/CharmsDev/charms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-lg hover:bg-secondary transition-colors"
-          >
-            <Github className="w-5 h-5 text-muted-foreground" />
-          </a>
           <WalletConnect />
         </div>
       </div>

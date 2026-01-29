@@ -5,13 +5,14 @@
  * Powered by Maestro Bitcoin API
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMaestro } from "@/hooks/useMaestro";
+import { getRecentTransactions, type TestnetTransaction, getMempoolTxUrl, shortenTestnetTxid } from "@/lib/testnet-transactions";
 import {
   TrendingUp,
   TrendingDown,
@@ -30,6 +31,11 @@ import {
   Zap,
   HardDrive,
   Clock,
+  ArrowUpRight,
+  Lock,
+  Target,
+  FileCheck,
+  CircleDollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,11 +59,63 @@ export function BitcoinAnalyticsDashboard() {
 
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
   const [walletAddress, setWalletAddress] = useState('');
+  const [appTransactions, setAppTransactions] = useState<TestnetTransaction[]>([]);
   const [walletData, setWalletData] = useState<{
     info: Awaited<ReturnType<typeof getAddressInfo>> | null;
     activity: Awaited<ReturnType<typeof getWalletActivity>> | null;
   }>({ info: null, activity: null });
   const [walletLoading, setWalletLoading] = useState(false);
+
+  // Refresh app transactions periodically
+  useEffect(() => {
+    const updateTransactions = () => setAppTransactions(getRecentTransactions());
+    updateTransactions();
+    const interval = setInterval(updateTransactions, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getActionIcon = (action: TestnetTransaction['action']) => {
+    switch (action) {
+      case 'create_escrow':
+      case 'complete_milestone':
+      case 'release_milestone':
+      case 'dispute_milestone':
+        return Lock;
+      case 'create_bounty':
+      case 'claim_bounty':
+      case 'submit_work':
+      case 'approve_bounty':
+      case 'release_bounty':
+      case 'dispute_bounty':
+        return Target;
+      case 'mint_bollar':
+      case 'redeem_bollar':
+        return CircleDollarSign;
+      case 'verify_zk_proof':
+        return FileCheck;
+      default:
+        return Activity;
+    }
+  };
+
+  const getActionLabel = (action: TestnetTransaction['action']) => {
+    const labels: Record<TestnetTransaction['action'], string> = {
+      create_escrow: 'Create Escrow',
+      complete_milestone: 'Complete Milestone',
+      release_milestone: 'Release Funds',
+      dispute_milestone: 'File Dispute',
+      create_bounty: 'Create Bounty',
+      claim_bounty: 'Claim Bounty',
+      submit_work: 'Submit Work',
+      approve_bounty: 'Approve Bounty',
+      release_bounty: 'Release Bounty',
+      dispute_bounty: 'Dispute Bounty',
+      mint_bollar: 'Mint BOLLAR',
+      redeem_bollar: 'Redeem BOLLAR',
+      verify_zk_proof: 'Verify ZK Proof',
+    };
+    return labels[action];
+  };
 
   const handleWalletSearch = async () => {
     if (!walletAddress.trim()) {
@@ -112,7 +170,6 @@ export function BitcoinAnalyticsDashboard() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Bitcoin Analytics</h2>
-            <p className="text-sm text-muted-foreground">Powered by Maestro API</p>
           </div>
         </div>
         <Button
@@ -254,46 +311,93 @@ export function BitcoinAnalyticsDashboard() {
         transition={{ duration: 0.2 }}
       >
         {activeTab === 'overview' && (
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Top DeFi Protocols */}
+          <div className="space-y-6">
+            {/* App Transactions */}
             <div className="p-4 rounded-xl bg-card border border-border">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-primary" />
-                Top DeFi Protocols
+                <Activity className="w-4 h-4 text-primary" />
+                App Transactions
+                <Badge variant="outline" className="ml-auto">{appTransactions.length} txs</Badge>
               </h3>
-              <div className="space-y-3">
-                {defiProtocols.slice(0, 3).map((protocol, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
-                    <div>
-                      <p className="font-medium text-foreground">{protocol.name}</p>
-                      <p className="text-xs text-muted-foreground">TVL: {formatUSD(protocol.tvl)}</p>
-                    </div>
-                    <Badge variant="outline" className={protocol.change24h >= 0 ? 'text-success' : 'text-destructive'}>
-                      {protocol.change24h >= 0 ? '+' : ''}{protocol.change24h.toFixed(2)}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+              {appTransactions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No transactions yet</p>
+                  <p className="text-xs">Perform actions in Escrows, Bounties, or Bollar to see transactions here</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {appTransactions.slice(0, 10).map((tx, i) => {
+                    const Icon = getActionIcon(tx.action);
+                    return (
+                      <div 
+                        key={`${tx.txid}-${i}`} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                        onClick={() => window.open(getMempoolTxUrl(tx.txid), '_blank', 'noopener,noreferrer')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Icon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{getActionLabel(tx.action)}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{shortenTestnetTxid(tx.txid, 10)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {tx.timestamp.toLocaleTimeString()}
+                          </span>
+                          <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Top NFT Collections */}
-            <div className="p-4 rounded-xl bg-card border border-border">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Image className="w-4 h-4 text-primary" />
-                Top Ordinal Collections
-              </h3>
-              <div className="space-y-3">
-                {nftCollections.slice(0, 3).map((collection, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
-                    <div>
-                      <p className="font-medium text-foreground">{collection.name}</p>
-                      <p className="text-xs text-muted-foreground">Floor: {formatSats(collection.floorPrice)}</p>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Top DeFi Protocols */}
+              <div className="p-4 rounded-xl bg-card border border-border">
+                <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  Top DeFi Protocols
+                </h3>
+                <div className="space-y-3">
+                  {defiProtocols.slice(0, 3).map((protocol, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
+                      <div>
+                        <p className="font-medium text-foreground">{protocol.name}</p>
+                        <p className="text-xs text-muted-foreground">TVL: {formatUSD(protocol.tvl)}</p>
+                      </div>
+                      <Badge variant="outline" className={protocol.change24h >= 0 ? 'text-success' : 'text-destructive'}>
+                        {protocol.change24h >= 0 ? '+' : ''}{protocol.change24h.toFixed(2)}%
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className={collection.change24h >= 0 ? 'text-success' : 'text-destructive'}>
-                      {collection.change24h >= 0 ? '+' : ''}{collection.change24h.toFixed(2)}%
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* Top NFT Collections */}
+              <div className="p-4 rounded-xl bg-card border border-border">
+                <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Image className="w-4 h-4 text-primary" />
+                  Top Ordinal Collections
+                </h3>
+                <div className="space-y-3">
+                  {nftCollections.slice(0, 3).map((collection, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
+                      <div>
+                        <p className="font-medium text-foreground">{collection.name}</p>
+                        <p className="text-xs text-muted-foreground">Floor: {formatSats(collection.floorPrice)}</p>
+                      </div>
+                      <Badge variant="outline" className={collection.change24h >= 0 ? 'text-success' : 'text-destructive'}>
+                        {collection.change24h >= 0 ? '+' : ''}{collection.change24h.toFixed(2)}%
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
