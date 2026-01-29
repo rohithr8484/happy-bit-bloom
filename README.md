@@ -56,7 +56,6 @@ BOS CircuitForge application uses Charms Protocol and zero-knowledge proofs to m
 ---
 
 ### 📊 Bitcoin Analytics
-- Track all escrows, bounties, and payments in one place  
 - See funds **locked, released, pending, or disputed**  
 - Clear history of what happened, when, and why
 
