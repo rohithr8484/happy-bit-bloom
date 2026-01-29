@@ -27,8 +27,9 @@ BOS CircuitForge application uses Charms Protocol and zero-knowledge proofs to m
 ---
 
 ### 💵 Bollar
-- Turn Bitcoin into a **stable, spendable balance** without selling it  
-- Use BTC as collateral and repay later to unlock it  
+- Turn Bitcoin into a **stable, spendable balance** without selling it
+- Deposit BTC to mint Bollar
+- Use Bollar as Token and repay later to unlock it  
 - Designed for predictable payments and settlements  
 
 ---
