@@ -1,6 +1,6 @@
 # BOS CircuitForge
 
-BOS CircuitForge enables milestone-based governance, and cross-chain verification. It enables developers to model application logic as deterministic circuits, prove execution correctness, and anchor outcomes to Bitcoin. BOS CircuitForge is a Bitcoin OS–native platform for building UTXO-secured trustless escrows, stateful circuits, and verifiable execution flows with final settlement on Bitcoin. 
+BOS CircuitForge enables milestone-based governance, and cross-chain verification. It enables developers to model application logic as deterministic circuits, prove execution correctness, and anchor outcomes to Bitcoin. It is a Bitcoin OS–native platform for building UTXO-secured trustless escrows, stateful circuits, and verifiable execution flows with final settlement on Bitcoin. 
 
 BOS CircuitForge application uses Charms Protocol and zero-knowledge proofs to make Bitcoin programmable by attaching verifiable logic to UTXOs—expanding Bitcoin’s functionality without changing its core security model. 
 
