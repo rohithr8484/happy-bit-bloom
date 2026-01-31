@@ -60,7 +60,7 @@ BOS CircuitForge application uses Charms Protocol and zero-knowledge proofs to m
 - Clear history of what happened, when, and why
 
 ### ✨Web3 AI bot
-- Recommendations for Escrow Setup, Bounty Design, Stablecoin Risk, and ZK Proof Type
+- Recommendations for Escrow Setup, Bounty Design, Stablecoin Risk, and ZK Proof Type,  Real-time NLP-based conversion of plain-English requests into queries.
   
 ---
 
