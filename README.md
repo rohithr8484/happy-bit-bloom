@@ -223,6 +223,8 @@ cd src/rust
 # charmix
 
 cargo install --locked charms
+charms --help
+
 cargo run -p charmix
 cargo build -p charmix
 cargo build -p charmix --release
@@ -233,10 +235,11 @@ cargo install wasm-pack
 wasm-pack build --target web --features wasm
 
 
-
 # charms-data
 
 cargo install --locked charms
+charms --help
+
 cargo build -p charms-data
 cargo test -p charms-data
 
@@ -247,6 +250,9 @@ wasm-pack build --target web --features wasm
 # charms-sdk
 
 cargo install --locked charms
+charms --help
+
+
 cargo build -p charms-sdk
 cargo test -p charms-sdk
 
@@ -257,6 +263,8 @@ wasm-pack build --target web --features wasm
 # charms-spell checker
 
 cargo install --locked charms
+charms s--help
+
 cargo build -p charms-spell-checker
 cargo test -p charms-spell-checker
 
@@ -267,6 +275,8 @@ wasm-pack build --target web --features wasm
 # charms-proof-wrapper
 
 cargo install --locked charms
+charms --help
+
 cargo build -p charms-proof-wrapper
 cargo test -p charms-proof-wrapper
 
