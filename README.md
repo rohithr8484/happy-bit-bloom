@@ -254,6 +254,27 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install wasm-pack
 wasm-pack build --target web --features wasm
 
+# charms-spell checker
+
+cargo install --locked charms
+cargo build -p charms-spell-checker
+cargo test -p charms-spell-checker
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+wasm-pack build --target web --features wasm
+
+# charms-proof-wrapper
+
+cargo install --locked charms
+cargo build -p charms-proof-wrapper
+cargo test -p charms-proof-wrapper
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+wasm-pack build --target web --features wasm
+
+
 ```
 ---
 
