@@ -1,0 +1,25 @@
+[package]
+name = "charms-proof-wrapper"
+version = "0.1.0"
+edition = "2021"
+description = "Charms Proof Wrapper - SP1 zkVM proof verification wrapper"
+license = "MIT"
+repository = "https://github.com/CharmsDev/charms"
+
+[dependencies]
+sp1-primitives = { version = "4.1.7", optional = true }
+sp1-zkvm = { version = "4.1.7", optional = true }
+
+[dev-dependencies]
+sp1-sdk = "4.1.7"
+
+[features]
+default = []
+zkvm = ["dep:sp1-primitives", "dep:sp1-zkvm"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "charms-proof-wrapper"
+path = "src/main.rs"
