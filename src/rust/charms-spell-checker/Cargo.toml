@@ -1,0 +1,23 @@
+[package]
+name = "charms-spell-checker"
+version = "0.1.0"
+edition = "2021"
+description = "Charms Spell Checker - SP1 zkVM spell verification"
+license = "MIT"
+repository = "https://github.com/CharmsDev/charms"
+
+[dependencies]
+charms-client = { path = "../charms-client" }
+charms-data = { path = "../charms-data" }
+sp1-zkvm = { version = "4.1.7", optional = true }
+
+[features]
+default = []
+zkvm = ["dep:sp1-zkvm"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "charms-spell-checker"
+path = "src/main.rs"
