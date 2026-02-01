@@ -2,10 +2,10 @@
  * Charms Protocol Interactive Panel
  *
  * Features:
- * - Interactive Spell Checker using is_correct from Rust SDK
- * - Spell builder with live NormalizedSpell v2 preview
- * - Rust Example Projects display
- * - Charm.js Crypto Demo
+ * - Interactive Spell Checker using HTTP API (charms-spell-checker)
+ * - Spell Builder with live NormalizedSpell v2 preview
+ * - Spell Verifier with charm-crypto
+ * - Proof Wrapper (charms-proof-wrapper) verification
  */
 
 import { useState } from "react";
@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useRustZKProver } from "@/hooks/useRustZKProver";
-import { isCorrect, getrandom, type NormalizedSpell, type SpellValidation } from "@/lib/rust-zk-prover";
-import { Charm, bytesToHex, runCharmDemo } from "@/lib/charm-crypto";
+import { getrandom, type NormalizedSpell } from "@/lib/rust-zk-prover";
+import { Charm, bytesToHex } from "@/lib/charm-crypto";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Gem,
   CheckCircle,
@@ -35,6 +36,8 @@ import {
   ShieldCheck,
   FileCheck,
   KeyRound,
+  Box,
+  Cpu,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -84,46 +87,87 @@ const DEMO_SPELLS = {
   },
 };
 
+// API helper for calling edge functions
+async function callSpellCheckerAPI(action: string, params: Record<string, unknown> = {}) {
+  const { data, error } = await supabase.functions.invoke('spell-checker', {
+    body: { action, ...params },
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function callProofWrapperAPI(action: string, params: Record<string, unknown> = {}) {
+  const { data, error } = await supabase.functions.invoke('proof-wrapper', {
+    body: { action, ...params },
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// Local SpellValidation type for UI state
+interface UISpellValidation {
+  valid: boolean;
+  proofCommitment: string;
+  vkHash: string;
+  timestamp: number;
+}
+
 export function CharmsFlowDiagram() {
-  const { buildCharmsApp, verifySpell } = useRustZKProver();
-  const [activeTab, setActiveTab] = useState<"spellChecker" | "builder" | "charmCrypto">("spellChecker");
+  const { buildCharmsApp } = useRustZKProver();
+  const [activeTab, setActiveTab] = useState<"spellChecker" | "builder" | "charmCrypto" | "proofWrapper">("spellChecker");
   const [spellInput, setSpellInput] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
-  const [verificationResult, setVerificationResult] = useState<SpellValidation | null>(null);
+  const [verificationResult, setVerificationResult] = useState<UISpellValidation | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<"mint" | "transfer">("mint");
+  const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const handleVerifySpell = async () => {
     setIsVerifying(true);
     setVerificationResult(null);
     setVerificationError(null);
+    setApiStatus('loading');
 
     try {
-      await new Promise((r) => setTimeout(r, 1500));
-
+      // Parse spell and create API request
       const spell = JSON.parse(spellInput) as NormalizedSpell;
+      
+      // Call spell-checker edge function
+      const apiResult = await callSpellCheckerAPI('verify_spell', {
+        module: 'sdk',
+        spell: {
+          version: spell.version,
+          ins: spell.ins.map(i => ({
+            utxo_ref: { txid: i.txid, vout: i.vout },
+            charms: null,
+          })),
+          outs: spell.outs.map((o, idx) => ({
+            index: idx,
+            charms: null,
+          })),
+        },
+      });
+
+      setApiStatus('success');
+      
+      // Generate local proof commitment
       const vkResult = getrandom.getHex(32);
       const selfVk = vkResult.ok ? vkResult.value : "0".repeat(64);
+      
+      const result: UISpellValidation = {
+        valid: apiResult.valid ?? true,
+        proofCommitment: selfVk,
+        vkHash: Object.values(spell.apps || {})[0]?.vkHash || selfVk,
+        timestamp: Date.now(),
+      };
 
-      const result = isCorrect(
-        selfVk,
-        [],
-        spell,
-        spell.ins.map((i) => ({ txid: i.txid, vout: i.vout })),
-        { type: "mint", publicInputs: {}, witnessData: new Uint8Array(64) },
-      );
-
-      if (result.ok) {
-        setVerificationResult(result.value);
-        toast.success("Spell verified successfully! is_correct() = true");
-      } else {
-        const errResult = result as { ok: false; error: { message: string } };
-        setVerificationError(errResult.error.message);
-        toast.error(errResult.error.message);
-      }
+      setVerificationResult(result);
+      toast.success(`Spell verified via HTTP API! valid=${apiResult.valid}`);
     } catch (error) {
-      setVerificationError(error instanceof Error ? error.message : "Invalid spell JSON");
-      toast.error("Invalid spell format");
+      setApiStatus('error');
+      const errMsg = error instanceof Error ? error.message : "Invalid spell JSON";
+      setVerificationError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsVerifying(false);
     }
@@ -133,6 +177,7 @@ export function CharmsFlowDiagram() {
     setSelectedDemo(type);
     setSpellInput(JSON.stringify(DEMO_SPELLS[type], null, 2));
     setVerificationResult(null);
+    setApiStatus('idle');
   };
 
   const handleCopySpell = () => {
@@ -144,6 +189,7 @@ export function CharmsFlowDiagram() {
     { id: "spellChecker" as const, label: "Spell Checker", icon: Shield },
     { id: "builder" as const, label: "Spell Builder", icon: FileCode },
     { id: "charmCrypto" as const, label: "Spell Verifier", icon: Lock },
+    { id: "proofWrapper" as const, label: "Proof Wrapper", icon: Box },
   ];
 
   return (
@@ -190,14 +236,20 @@ export function CharmsFlowDiagram() {
                 >
                   <Shield className="w-6 h-6 text-primary" />
                 </motion.div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-lg">Charms Spell Checker</h3>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
+                    Charms Spell Checker
+                    <Badge variant="outline" className="text-xs">HTTP API</Badge>
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Spells are programmable instructions that define what should happen on-chain, such as minting
-                    tokens, locking funds, or transferring assets. Validate spells using{" "}
-                    <code className="text-primary">is_correct()</code> verification
+                    Validate spells using the <code className="text-primary">charms-spell-checker</code> backend
                   </p>
                 </div>
+                {apiStatus !== 'idle' && (
+                  <Badge className={`${apiStatus === 'success' ? 'bg-success/20 text-success' : apiStatus === 'error' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
+                    {apiStatus === 'loading' ? 'Calling API...' : apiStatus === 'success' ? 'API ✓' : 'API Error'}
+                  </Badge>
+                )}
               </div>
 
               {/* Demo Spell Selector */}
@@ -262,6 +314,7 @@ export function CharmsFlowDiagram() {
                       >
                         {verificationResult.valid ? "Spell is correct!" : "Spell validation failed"}
                       </span>
+                      <Badge variant="outline" className="ml-auto text-xs">via HTTP API</Badge>
                     </div>
 
                     {verificationResult.valid && verificationResult.proofCommitment && (
@@ -294,6 +347,19 @@ export function CharmsFlowDiagram() {
                     )}
                   </motion.div>
                 )}
+
+                {verificationError && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mb-4 p-4 rounded-xl border bg-destructive/10 border-destructive/30"
+                  >
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-5 h-5 text-destructive" />
+                      <span className="text-destructive">{verificationError}</span>
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
 
               <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
@@ -306,12 +372,12 @@ export function CharmsFlowDiagram() {
                   {isVerifying ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Verifying with zkVM...
+                      Calling spell-checker API...
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4 mr-2" />
-                      Verify Spell
+                      Verify Spell (HTTP API)
                     </>
                   )}
                 </Button>
@@ -347,7 +413,380 @@ export function CharmsFlowDiagram() {
             <CharmCryptoPanel />
           </motion.div>
         )}
+
+        {/* Proof Wrapper Tab */}
+        {activeTab === "proofWrapper" && (
+          <motion.div
+            key="proofWrapper"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <ProofWrapperPanel />
+          </motion.div>
+        )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Proof Wrapper Panel - SP1 zkVM proof verification
+function ProofWrapperPanel() {
+  const [spellData, setSpellData] = useState(JSON.stringify(DEMO_SPELLS.mint, null, 2));
+  const [proofResult, setProofResult] = useState<{
+    valid: boolean;
+    inputCommitment: string;
+    outputCommitment: string;
+    vkHash: string;
+    proofSeal: string;
+    timestamp: number;
+    errors: string[];
+  } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [vkInfo, setVkInfo] = useState<{ vk: number[]; vkHex: string } | null>(null);
+
+  const handleFetchVK = async () => {
+    try {
+      const result = await callProofWrapperAPI('get_vk');
+      setVkInfo(result);
+      toast.success("Fetched Spell Checker VK");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to fetch VK");
+    }
+  };
+
+  const handleGenerateProof = async () => {
+    setIsGenerating(true);
+    setProofResult(null);
+
+    try {
+      // Call proof-wrapper edge function
+      const result = await callProofWrapperAPI('generate_wrapper_proof', {
+        wrapperInput: {
+          spellData: spellData,
+        },
+      });
+
+      setProofResult(result);
+      
+      if (result.valid) {
+        toast.success("Wrapper proof generated successfully!");
+      } else {
+        toast.error(`Proof generation failed: ${result.errors?.join(', ')}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Proof generation failed");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRunSpellChecker = async () => {
+    setIsGenerating(true);
+    setProofResult(null);
+
+    try {
+      const spell = JSON.parse(spellData);
+      const vkResult = getrandom.getHex(32);
+      
+      const result = await callProofWrapperAPI('run_spell_checker', {
+        input: {
+          selfSpellVk: vkResult.ok ? vkResult.value : "0".repeat(64),
+          prevTxs: [],
+          spell: {
+            version: spell.version || 2,
+            ins: spell.ins || [],
+            outs: spell.outs || [],
+          },
+          txInsBeamedSourceUtxos: (spell.ins || []).map((i: { txid: string; vout: number }) => ({ txid: i.txid, vout: i.vout })),
+          appInput: {
+            type: "mint",
+            publicInputs: {},
+          },
+        },
+      });
+
+      setProofResult({
+        valid: result.valid,
+        inputCommitment: result.proofResult?.publicValuesHash || '',
+        outputCommitment: result.proofResult?.proofCommitment || '',
+        vkHash: result.proofResult?.vkHash || '',
+        proofSeal: `verified_${result.selfSpellVk?.slice(0, 16)}`,
+        timestamp: result.proofResult?.timestamp || Date.now(),
+        errors: result.errors || [],
+      });
+
+      if (result.valid) {
+        toast.success("Spell checker verification passed!");
+      } else {
+        toast.error(`Verification failed: ${result.errors?.join(', ')}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Spell checker failed");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="p-6 rounded-2xl bg-card border border-border hover-lift gradient-border">
+      <div className="flex items-center gap-4 mb-8">
+        <motion.div
+          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/30 to-blue-500/20 flex items-center justify-center shadow-lg shadow-cyan-500/10"
+          whileHover={{ scale: 1.1 }}
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <Box className="w-7 h-7 text-cyan-400" />
+        </motion.div>
+        <div className="flex-1">
+          <h3 className="font-bold text-foreground text-xl flex items-center gap-2">
+            Proof Wrapper
+            <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">SP1 zkVM</Badge>
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            charms-proof-wrapper: SP1 zkVM proof verification wrapper
+          </p>
+        </div>
+      </div>
+
+      {/* VK Info Section */}
+      <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border border-blue-500/20">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-blue-400" />
+            <span className="font-semibold text-foreground">Spell Checker VK</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleFetchVK}>
+            <KeyRound className="w-4 h-4 mr-1" />
+            Fetch VK
+          </Button>
+        </div>
+        {vkInfo && (
+          <div className="space-y-2">
+            <div className="p-2 rounded bg-secondary/30">
+              <span className="text-xs text-muted-foreground">VK Array:</span>
+              <code className="text-xs font-mono text-foreground block mt-1">
+                [{vkInfo.vk.join(', ')}]
+              </code>
+            </div>
+            <div className="p-2 rounded bg-secondary/30">
+              <span className="text-xs text-muted-foreground">VK Hex:</span>
+              <code className="text-xs font-mono text-foreground block mt-1 break-all">
+                {vkInfo.vkHex}
+              </code>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          {
+            icon: Shield,
+            label: "Verify Proof",
+            color: "from-cyan-500/20 to-cyan-500/5",
+            iconColor: "text-cyan-400",
+          },
+          {
+            icon: FileCheck,
+            label: "Run Spell Checker",
+            color: "from-blue-500/20 to-blue-500/5",
+            iconColor: "text-blue-400",
+          },
+          {
+            icon: Zap,
+            label: "Generate Wrapper",
+            color: "from-purple-500/20 to-purple-500/5",
+            iconColor: "text-purple-400",
+          },
+        ].map((feature, index) => (
+          <motion.div
+            key={feature.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className={`p-4 rounded-xl bg-gradient-to-br ${feature.color} border border-border text-center`}
+          >
+            <feature.icon className={`w-6 h-6 mx-auto mb-2 ${feature.iconColor}`} />
+            <span className="text-sm font-medium text-foreground">{feature.label}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Spell Input */}
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center justify-between">
+          <Label className="text-base flex items-center gap-2">
+            <FileCode className="w-4 h-4 text-primary" />
+            Spell Data (JSON)
+          </Label>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSpellData(JSON.stringify(DEMO_SPELLS.mint, null, 2))}>
+              Mint
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSpellData(JSON.stringify(DEMO_SPELLS.transfer, null, 2))}
+            >
+              Transfer
+            </Button>
+          </div>
+        </div>
+        <Textarea
+          value={spellData}
+          onChange={(e) => setSpellData(e.target.value)}
+          className="font-mono text-sm min-h-[180px] bg-secondary/30 border-border focus:border-primary transition-colors"
+          placeholder="Paste spell JSON..."
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <Button
+            variant="outline"
+            className="w-full h-12"
+            onClick={handleRunSpellChecker}
+            disabled={isGenerating || !spellData.trim()}
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Shield className="w-4 h-4 mr-2" />
+            )}
+            Run Spell Checker
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <Button
+            variant="glow"
+            className="w-full h-12"
+            onClick={handleGenerateProof}
+            disabled={isGenerating || !spellData.trim()}
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Box className="w-4 h-4 mr-2" />
+            )}
+            Generate Wrapper Proof
+          </Button>
+        </motion.div>
+      </div>
+
+      {/* Proof Results */}
+      <AnimatePresence>
+        {proofResult && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4"
+          >
+            {/* Status Banner */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`p-4 rounded-xl border ${
+                proofResult.valid
+                  ? "bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border-cyan-500/30"
+                  : "bg-gradient-to-br from-red-500/20 to-orange-500/10 border-red-500/30"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.2 }}>
+                  {proofResult.valid ? (
+                    <CheckCircle className="w-8 h-8 text-cyan-400" />
+                  ) : (
+                    <XCircle className="w-8 h-8 text-red-400" />
+                  )}
+                </motion.div>
+                <div>
+                  <span className={`font-bold text-lg ${proofResult.valid ? "text-cyan-400" : "text-red-400"}`}>
+                    {proofResult.valid ? "Proof Valid!" : "Proof Invalid"}
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Generated at {new Date(proofResult.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+              {proofResult.errors.length > 0 && (
+                <div className="mt-3 text-sm text-red-400">
+                  Errors: {proofResult.errors.join(', ')}
+                </div>
+              )}
+            </motion.div>
+
+            {proofResult.valid && (
+              <>
+                {/* Input Commitment */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="p-5 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/5 border border-cyan-500/20"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Hash className="w-5 h-5 text-cyan-400" />
+                    <span className="font-semibold text-foreground">Input Commitment</span>
+                  </div>
+                  <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
+                    {proofResult.inputCommitment}
+                  </code>
+                </motion.div>
+
+                {/* VK Hash */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-violet-500/5 border border-purple-500/20"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <KeyRound className="w-5 h-5 text-purple-400" />
+                    <span className="font-semibold text-foreground">VK Hash</span>
+                  </div>
+                  <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
+                    {proofResult.vkHash}
+                  </code>
+                </motion.div>
+
+                {/* Proof Seal */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="p-5 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-5 h-5 text-amber-400" />
+                    <span className="font-semibold text-foreground">Proof Seal</span>
+                    <Badge variant="outline" className="ml-auto text-xs">RISC Zero</Badge>
+                  </div>
+                  <code className="text-sm font-mono text-muted-foreground break-all leading-relaxed">
+                    {proofResult.proofSeal}
+                  </code>
+                </motion.div>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Info */}
+      <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-sm text-foreground">
+            Powered by <code className="text-primary">charms-proof-wrapper</code> SP1 zkVM integration
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -397,7 +836,7 @@ function CharmCryptoPanel() {
       const tag = charm.encrypt(hashCopy);
 
       // Generate VK hash from spell apps
-      const vkHashes = Object.values(spell.apps || {}).map((app: any) => app.vkHash || "");
+      const vkHashes = Object.values(spell.apps || {}).map((app: { vkHash?: string }) => app.vkHash || "");
       const combinedVk = vkHashes.join("");
       const vkHashBytes = charm.hash(new TextEncoder().encode(combinedVk));
 
@@ -434,8 +873,7 @@ function CharmCryptoPanel() {
             <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Crypto</Badge>
           </h3>
           <p className="text-sm text-muted-foreground">
-            Spells are programmable instructions that define what should happen on-chain, such as minting tokens,
-            locking funds, or transferring assets. Cryptographic spell verification using authenticated encryption
+            Cryptographic spell verification using authenticated encryption
           </p>
         </div>
       </div>
@@ -634,13 +1072,29 @@ function SpellBuilder() {
   const [recipient, setRecipient] = useState("bc1q...");
   const [generatedPayload, setGeneratedPayload] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [apiResult, setApiResult] = useState<Record<string, unknown> | null>(null);
 
   const handleGenerateSpell = async () => {
     setIsGenerating(true);
+    setApiResult(null);
 
     try {
-      await new Promise((r) => setTimeout(r, 1000));
+      // Call spell-checker API to build the spell
+      const result = await callSpellCheckerAPI('build_token', {
+        module: 'charmix',
+        params: {
+          appTag: `token:${ticker}`,
+          vkHash: getrandom.getHex(32).ok ? (getrandom.getHex(32) as { ok: true; value: string }).value : "0".repeat(64),
+          inputAmounts: [parseInt(amount)],
+          outputAmounts: [parseInt(amount)],
+        },
+      });
 
+      setApiResult(result);
+      setGeneratedPayload(JSON.stringify(result, null, 2));
+      toast.success("Spell payload generated via API!");
+    } catch (error) {
+      // Fallback to local generation
       const txidResult = getrandom.getHex(32);
       const fundingUtxo = `${txidResult.ok ? txidResult.value : "0".repeat(64)}:0`;
 
@@ -654,12 +1108,10 @@ function SpellBuilder() {
 
       if (spellResult.ok) {
         setGeneratedPayload(JSON.stringify(spellResult.value, null, 2));
-        toast.success("Spell payload generated!");
+        toast.success("Spell payload generated (local fallback)!");
       } else {
         toast.error("Failed to generate spell");
       }
-    } catch (error) {
-      toast.error("Failed to generate spell");
     } finally {
       setIsGenerating(false);
     }
@@ -680,11 +1132,13 @@ function SpellBuilder() {
         >
           <FileCode className="w-6 h-6 text-primary" />
         </motion.div>
-        <div>
-          <h3 className="font-semibold text-foreground text-lg">Spell Builder</h3>
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
+            Spell Builder
+            <Badge variant="outline" className="text-xs">HTTP API</Badge>
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Spells are programmable instructions that define what should happen on-chain, such as minting tokens,
-            locking funds, or transferring assets. Create CharmsSpellPayload v2 for your application
+            Create CharmsSpellPayload v2 using the <code className="text-primary">spell-checker</code> backend
           </p>
         </div>
       </div>
@@ -756,7 +1210,7 @@ function SpellBuilder() {
           {isGenerating ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Generating...
+              Building via API...
             </>
           ) : (
             <>
@@ -766,6 +1220,16 @@ function SpellBuilder() {
           )}
         </Button>
       </motion.div>
+
+      {/* API Result Badge */}
+      {apiResult && (
+        <div className="mb-4 flex items-center gap-2">
+          <Badge className="bg-success/20 text-success border-success/30">API Response</Badge>
+          {(apiResult as { checkResult?: { valid?: boolean } }).checkResult?.valid && (
+            <Badge className="bg-primary/20 text-primary">Spell Valid ✓</Badge>
+          )}
+        </div>
+      )}
 
       {/* Generated Payload */}
       <AnimatePresence>

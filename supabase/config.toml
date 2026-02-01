@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.protocol-advisor]
 verify_jwt = false
+
+[functions.proof-wrapper]
+verify_jwt = false
